@@ -1,6 +1,11 @@
-from datetime import time
+from datetime import time, timedelta
 
-from grow_light_recipe.time_utils import time_to_minutes, minutes_to_time
+from grow_light_recipe.time_utils import (
+    lerp_time,
+    minutes_to_time,
+    shift_time,
+    time_to_minutes,
+)
 
 
 class TestTimeToMinutes:
@@ -34,10 +39,6 @@ class TestMinutesToTime:
         assert minutes_to_time(1500) == time(1, 0)
 
 
-from datetime import timedelta
-
-from grow_light_recipe.time_utils import shift_time
-
 
 class TestShiftTime:
     def test_shift_forward(self):
@@ -55,8 +56,6 @@ class TestShiftTime:
     def test_shift_zero(self):
         assert shift_time(time(12, 0), timedelta()) == time(12, 0)
 
-
-from grow_light_recipe.time_utils import lerp_time
 
 
 class TestLerpTime:

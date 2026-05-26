@@ -1,6 +1,7 @@
 from datetime import time, timedelta
 
 from grow_light_recipe.models import (
+    LightRecipe,
     Phase,
     TimeRange,
     LightConfig,
@@ -58,8 +59,6 @@ class TestScheduleEntry:
         assert entry.on_time == time(6, 0)
         assert entry.off_time == time(0, 15)
 
-
-from grow_light_recipe.models import LightRecipe
 
 
 class TestLightRecipe:
