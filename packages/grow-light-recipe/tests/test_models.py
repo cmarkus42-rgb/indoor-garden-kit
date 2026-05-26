@@ -57,3 +57,104 @@ class TestScheduleEntry:
         assert entry.light_type == "far_red"
         assert entry.on_time == time(6, 0)
         assert entry.off_time == time(0, 15)
+
+
+from grow_light_recipe.models import LightRecipe
+
+
+class TestLightRecipe:
+    def test_construction(self):
+        recipe = LightRecipe(
+            photoperiod=TimeRange(on=time(6, 0), off=time(0, 0)),
+            phase=Phase.veg,
+            light_types={"main": LightConfig()},
+        )
+        assert recipe.phase == Phase.veg
+        assert "main" in recipe.light_types
+
+    def test_schedule_single_light_no_offset(self):
+        recipe = LightRecipe(
+            photoperiod=TimeRange(on=time(6, 0), off=time(0, 0)),
+            phase=Phase.veg,
+            light_types={"main": LightConfig()},
+        )
+        entries = recipe.schedule()
+        assert len(entries) == 1
+        assert entries[0] == ScheduleEntry(
+            light_type="main", on_time=time(6, 0), off_time=time(0, 0)
+        )
+
+    def test_schedule_with_offsets(self):
+        recipe = LightRecipe(
+            photoperiod=TimeRange(on=time(6, 0), off=time(0, 0)),
+            phase=Phase.veg,
+            light_types={
+                "main": LightConfig(),
+                "far_red": LightConfig(
+                    offset_before=timedelta(0),
+                    offset_after=timedelta(minutes=15),
+                ),
+            },
+        )
+        entries = recipe.schedule()
+        by_type = {e.light_type: e for e in entries}
+        assert by_type["main"].on_time == time(6, 0)
+        assert by_type["main"].off_time == time(0, 0)
+        assert by_type["far_red"].on_time == time(6, 0)
+        assert by_type["far_red"].off_time == time(0, 15)
+
+    def test_schedule_with_before_offset(self):
+        recipe = LightRecipe(
+            photoperiod=TimeRange(on=time(6, 0), off=time(0, 0)),
+            phase=Phase.veg,
+            light_types={
+                "dawn": LightConfig(
+                    offset_before=timedelta(minutes=30),
+                    offset_after=timedelta(0),
+                ),
+            },
+        )
+        entries = recipe.schedule()
+        assert entries[0].on_time == time(5, 30)
+        assert entries[0].off_time == time(0, 0)
+
+    def test_schedule_filters_by_phase(self):
+        recipe = LightRecipe(
+            photoperiod=TimeRange(on=time(6, 0), off=time(0, 0)),
+            phase=Phase.veg,
+            light_types={
+                "main": LightConfig(phases=(Phase.veg, Phase.flower)),
+                "flower_boost": LightConfig(phases=(Phase.flower,)),
+            },
+        )
+        entries = recipe.schedule()
+        assert len(entries) == 1
+        assert entries[0].light_type == "main"
+
+    def test_schedule_empty_when_no_lights_for_phase(self):
+        recipe = LightRecipe(
+            photoperiod=TimeRange(on=time(8, 0), off=time(20, 0)),
+            phase=Phase.veg,
+            light_types={
+                "flower_only": LightConfig(phases=(Phase.flower,)),
+            },
+        )
+        assert recipe.schedule() == []
+
+    def test_schedule_multiple_lights_sorted_by_on_time(self):
+        recipe = LightRecipe(
+            photoperiod=TimeRange(on=time(6, 0), off=time(0, 0)),
+            phase=Phase.veg,
+            light_types={
+                "main": LightConfig(),
+                "dawn": LightConfig(
+                    offset_before=timedelta(minutes=30),
+                    offset_after=timedelta(0),
+                ),
+            },
+        )
+        entries = recipe.schedule()
+        assert len(entries) == 2
+        # dawn starts at 05:30, main at 06:00
+        assert entries[0].light_type == "dawn"
+        assert entries[1].light_type == "main"
