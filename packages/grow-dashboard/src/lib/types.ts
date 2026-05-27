@@ -1,0 +1,94 @@
+// -- Generic Timeseries (preparation for Investigation View) --
+
+export interface TimeseriesPoint {
+  timestamp: string;
+  metric: string;
+  value: number;
+  source: string;
+  device_id: string;
+}
+
+// -- API Response Types --
+
+export interface Device {
+  id: string;
+  name: string;
+  device_type: string;
+  address: string;
+  zone: string;
+  status: string;
+  last_seen: string;
+}
+
+export interface StatusResponse {
+  devices: Device[];
+}
+
+export interface SensorReading {
+  id: string;
+  device_id: string;
+  timestamp: string;
+  metric: string;
+  value: number;
+}
+
+export interface ReadingsResponse {
+  readings: SensorReading[];
+}
+
+export interface Alert {
+  id: string;
+  timestamp: string;
+  tier: 'info' | 'warning' | 'critical';
+  source: string;
+  message: string;
+  resolved_at: string | null;
+}
+
+export interface AlertsResponse {
+  alerts: Alert[];
+}
+
+export interface LightSchedule {
+  id: string;
+  device_id: string;
+  date: string;
+  on_time: string;
+  off_time: string;
+  pushed_at: string | null;
+  recipe_snapshot: Record<string, unknown>;
+}
+
+export interface SchedulesResponse {
+  schedules: LightSchedule[];
+}
+
+export interface AuthResponse {
+  verified: boolean;
+}
+
+export interface PollingResponse {
+  loops: Record<string, unknown>;
+}
+
+// -- SSE --
+
+export type SSEEventType = 'sensor_update' | 'device_status' | 'irrigation' | 'schedule_pushed';
+
+export interface SSEEvent {
+  type: SSEEventType;
+  data: Record<string, unknown>;
+}
+
+// -- Helpers --
+
+/** Convert a SensorReading to a generic TimeseriesPoint. */
+export function toTimeseries(r: SensorReading, source: string): TimeseriesPoint {
+  return {
+    timestamp: r.timestamp,
+    metric: r.metric,
+    value: r.value,
+    source,
+    device_id: r.device_id
+  };
+}
