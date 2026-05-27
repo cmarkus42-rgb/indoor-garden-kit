@@ -1,28 +1,17 @@
 <script lang="ts">
-  import { verified, verifyPin, clearAuth } from '$lib/auth.js';
+  import { clearAuth } from '$lib/auth.js';
   import { get } from '$lib/api.js';
   import type { StatusResponse, PollingResponse, Device } from '$lib/types.js';
   import { onMount } from 'svelte';
 
-  let pin = $state('');
-  let pinError = $state('');
   let devices = $state<Device[]>([]);
   let polling = $state<Record<string, unknown>>({});
-
-  async function handleVerify() {
-    pinError = '';
-    const ok = await verifyPin(pin);
-    if (!ok) {
-      pinError = 'Invalid PIN';
-    }
-    pin = '';
-  }
 
   async function loadData() {
     try {
       const status = await get<StatusResponse>('/api/status');
       devices = status.devices;
-    } catch { /* ignore when not authed yet */ }
+    } catch { /* ignore */ }
     try {
       const poll = await get<PollingResponse>('/api/polling');
       polling = poll.loops;
@@ -32,38 +21,38 @@
   onMount(() => { loadData(); });
 </script>
 
-<h1>Settings</h1>
+<h1>Einstellungen</h1>
 
-<h2>Authentication</h2>
-{#if $verified}
-  <p>Authenticated. <button onclick={() => clearAuth()}>Clear</button></p>
-{:else}
-  <form onsubmit={(e) => { e.preventDefault(); handleVerify(); }}>
-    <input type="password" bind:value={pin} placeholder="PIN" />
-    <button type="submit">Verify</button>
-  </form>
-  {#if pinError}<p class="error">{pinError}</p>{/if}
-{/if}
+<div class="panel" style="padding: var(--s-4); margin-bottom: var(--s-4);">
+  <div class="section-h">Authentifizierung</div>
+  <div style="padding: var(--s-4);">
+    <p>Angemeldet. <button class="btn ghost" onclick={() => clearAuth()}>Abmelden</button></p>
+  </div>
+</div>
 
-<h2>Polling Status</h2>
-<pre>{JSON.stringify(polling, null, 2)}</pre>
+<div class="panel" style="padding: var(--s-4); margin-bottom: var(--s-4);">
+  <div class="section-h">Polling Status</div>
+  <pre>{JSON.stringify(polling, null, 2)}</pre>
+</div>
 
-<h2>Devices</h2>
-{#if devices.length === 0}
-  <p class="muted">No devices</p>
-{:else}
-  <table>
-    <thead><tr><th>Name</th><th>Type</th><th>Zone</th><th>Status</th><th>Last Seen</th></tr></thead>
-    <tbody>
-      {#each devices as d}
-        <tr>
-          <td>{d.name}</td>
-          <td>{d.device_type}</td>
-          <td>{d.zone}</td>
-          <td>{d.status}</td>
-          <td>{d.last_seen}</td>
-        </tr>
-      {/each}
-    </tbody>
-  </table>
-{/if}
+<div class="panel" style="padding: var(--s-4);">
+  <div class="section-h">Geraete</div>
+  {#if devices.length === 0}
+    <p class="muted" style="padding: var(--s-4);">Keine Geraete</p>
+  {:else}
+    <table>
+      <thead><tr><th>Name</th><th>Typ</th><th>Zone</th><th>Status</th><th>Zuletzt</th></tr></thead>
+      <tbody>
+        {#each devices as d}
+          <tr>
+            <td>{d.name}</td>
+            <td>{d.device_type}</td>
+            <td>{d.zone}</td>
+            <td>{d.status}</td>
+            <td>{d.last_seen}</td>
+          </tr>
+        {/each}
+      </tbody>
+    </table>
+  {/if}
+</div>

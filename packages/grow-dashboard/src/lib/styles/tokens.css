@@ -1,0 +1,116 @@
+/* ============================================================
+   GROW DASHBOARD — DESIGN TOKENS
+   Two themes share the same semantic scale.
+   ============================================================ */
+
+:root {
+  /* Type */
+  --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  --font-sans: "Inter Tight", "Inter", system-ui, sans-serif;
+
+  /* Type sizes — bumped again, especially small labels */
+  --t-9: 11px;
+  --t-10: 12px;
+  --t-11: 13px;
+  --t-12: 14px;
+  --t-13: 15px;
+  --t-14: 16px;
+  --t-16: 20px;
+  --t-20: 24px;
+  --t-24: 32px;
+  --t-32: 40px;
+  --t-48: 64px;
+
+  /* Spacing — 4px base */
+  --s-1: 4px;
+  --s-2: 8px;
+  --s-3: 12px;
+  --s-4: 16px;
+  --s-5: 20px;
+  --s-6: 24px;
+  --s-8: 32px;
+  --s-10: 40px;
+  --s-12: 48px;
+
+  /* Radii */
+  --r-0: 0;
+  --r-1: 2px;
+  --r-2: 4px;
+  --r-3: 8px;
+  --r-pill: 999px;
+
+  /* Status (semantic) — shared across themes */
+  --st-ok: oklch(78% 0.16 145);       /* green */
+  --st-info: oklch(72% 0.15 220);     /* cyan */
+  --st-warn: oklch(78% 0.16 75);      /* amber */
+  --st-crit: oklch(68% 0.22 25);      /* red */
+  --st-recipe: oklch(70% 0.24 320);   /* magenta */
+  --st-light: oklch(85% 0.16 95);     /* yellow */
+
+  /* Soft tints (for zones, fills) */
+  --st-ok-soft: oklch(78% 0.16 145 / 0.14);
+  --st-info-soft: oklch(72% 0.15 220 / 0.14);
+  --st-warn-soft: oklch(78% 0.16 75 / 0.14);
+  --st-crit-soft: oklch(68% 0.22 25 / 0.14);
+  --st-recipe-soft: oklch(70% 0.24 320 / 0.14);
+  --st-light-soft: oklch(85% 0.16 95 / 0.14);
+}
+
+/* ============================================================
+   BOTANICAL — primary theme. Soft tent-dark, plant-green.
+   ============================================================ */
+[data-theme="botanical"] {
+  --bg-0: #121815;         /* page bg — softer than OLED black */
+  --bg-1: #1a221d;         /* panel */
+  --bg-2: #222b25;         /* raised */
+  --bg-3: #2b352e;         /* hover */
+  --bg-inset: #0c1110;     /* chart well — darker than page */
+
+  --line: #2d3a31;         /* hairline */
+  --line-strong: #3d4d40;  /* divider */
+
+  --ink-1: #eef4ea;        /* primary text */
+  --ink-2: #c6d4c0;        /* secondary */
+  --ink-3: #8aa28d;        /* tertiary, labels */
+  --ink-4: #5c7160;        /* disabled, axes */
+
+  --accent: oklch(82% 0.14 145);       /* primary green */
+  --accent-soft: oklch(82% 0.14 145 / 0.18);
+  --accent-line: oklch(82% 0.14 145 / 0.34);
+
+  --grid: oklch(82% 0.14 145 / 0.07);
+  --glow: 0 0 24px oklch(82% 0.14 145 / 0.22);
+
+  --font-display: var(--font-sans);
+  --font-data: var(--font-mono);
+}
+
+/* ============================================================
+   CYBERPUNK — alt theme. Neon magenta/cyan on indigo-black.
+   ============================================================ */
+[data-theme="cyberpunk"] {
+  --bg-0: #0d0a1c;
+  --bg-1: #16102d;
+  --bg-2: #1c1538;
+  --bg-3: #261c47;
+  --bg-inset: #0a0716;
+
+  --line: #2e1f54;
+  --line-strong: #422d75;
+
+  --ink-1: #f6efff;
+  --ink-2: #cebde8;
+  --ink-3: #9285b3;
+  --ink-4: #5d4f7e;
+
+  --accent: oklch(72% 0.28 330);            /* magenta */
+  --accent-2: oklch(82% 0.16 215);          /* cyan */
+  --accent-soft: oklch(72% 0.28 330 / 0.18);
+  --accent-line: oklch(72% 0.28 330 / 0.38);
+
+  --grid: oklch(72% 0.28 330 / 0.07);
+  --glow: 0 0 28px oklch(72% 0.28 330 / 0.38);
+
+  --font-display: var(--font-sans);
+  --font-data: var(--font-mono);
+}
