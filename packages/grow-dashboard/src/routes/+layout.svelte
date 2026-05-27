@@ -15,6 +15,7 @@
     { href: '/light', label: 'Light' },
     { href: '/energy', label: 'Energy' },
     { href: '/log', label: 'Log' },
+    { href: '/investigate', label: 'Investigate' },
     { href: '/settings', label: 'Settings' }
   ];
 
