@@ -25,6 +25,9 @@
     if (evt?.type === 'sensor_update' && evt.data.source === 'ecowitt') {
       load();
     }
+    if (evt?.type === 'irrigation') {
+      load();
+    }
   });
 
   function latest(deviceReadings: SensorReading[], metric: string): SensorReading | undefined {
