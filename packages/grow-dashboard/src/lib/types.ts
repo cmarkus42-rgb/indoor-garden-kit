@@ -80,6 +80,76 @@ export interface SSEEvent {
   data: Record<string, unknown>;
 }
 
+// -- Grow Composer Types --
+
+export interface ChannelRuleWindow {
+  start: string;
+  duration_min: number;
+}
+
+export interface ChannelRule {
+  rule: 'before_on' | 'after_off' | 'window';
+  offset_min?: number;
+  duration_min?: number;
+  windows?: ChannelRuleWindow[];
+}
+
+export interface DimmingConfig {
+  sunrise_min: number;
+  sunset_min: number;
+  max_pct: number;
+  min_pct: number;
+}
+
+export interface RecipeData {
+  name: string;
+  photoperiod: { on: string; off: string };
+  dimming: DimmingConfig;
+  channels: Record<string, ChannelRule>;
+}
+
+export interface RecipeSummary {
+  name: string;
+  photoperiod: string;
+  channels: number;
+}
+
+export interface RecipesResponse {
+  recipes: RecipeSummary[];
+}
+
+export interface QueueEntry {
+  recipe?: string;
+  until?: string;
+  transition_to?: string;
+  days?: number;
+}
+
+export interface QueueResponse {
+  entries: QueueEntry[];
+}
+
+export interface DimmingPoint {
+  time: number;
+  pct: number;
+}
+
+export interface ChannelSchedule {
+  channel: string;
+  on_time: number;
+  off_time: number;
+}
+
+export interface DayPlanResponse {
+  date: string;
+  recipe_name: string;
+  transition_progress: number | null;
+  main_on: number;
+  main_off: number;
+  dimming_curve: DimmingPoint[];
+  channels: ChannelSchedule[];
+}
+
 // -- Helpers --
 
 /** Convert a SensorReading to a generic TimeseriesPoint. */

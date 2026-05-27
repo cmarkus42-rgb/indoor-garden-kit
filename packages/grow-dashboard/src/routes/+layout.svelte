@@ -13,6 +13,7 @@
     { href: '/climate', label: 'Climate' },
     { href: '/soil', label: 'Soil' },
     { href: '/light', label: 'Light' },
+    { href: '/recipes', label: 'Recipes' },
     { href: '/energy', label: 'Energy' },
     { href: '/log', label: 'Log' },
     { href: '/investigate', label: 'Investigate' },
