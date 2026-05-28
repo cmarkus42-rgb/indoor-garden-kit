@@ -17,10 +17,10 @@
   onMount(() => { load(); });
 
   const TIER_OPTIONS = [
-    { value: 'all',      label: 'Alle',     variant: null },
+    { value: 'all',      label: 'All',      variant: null },
     { value: 'info',     label: 'Info',     variant: 'info' },
-    { value: 'warning',  label: 'Warnung',  variant: 'warn' },
-    { value: 'critical', label: 'Kritisch', variant: 'crit' },
+    { value: 'warning',  label: 'Warning',  variant: 'warn' },
+    { value: 'critical', label: 'Critical', variant: 'crit' },
   ] as const;
 
   const tierToVariant = (tier: Alert['tier']) =>
@@ -66,7 +66,7 @@
         class="source-input"
         type="text"
         bind:value={sourceFilter}
-        placeholder="Quelle filtern…"
+        placeholder="Filter by source…"
       />
       {#if sourceFilter}
         <button class="clear-btn" onclick={() => { sourceFilter = ''; }}>×</button>
@@ -84,9 +84,9 @@
         <thead>
           <tr>
             <th class="col-tier"></th>
-            <th class="col-ts">Zeitstempel</th>
-            <th class="col-src">Quelle</th>
-            <th class="col-msg">Meldung</th>
+            <th class="col-ts">Timestamp</th>
+            <th class="col-src">Source</th>
+            <th class="col-msg">Message</th>
             <th class="col-res">Status</th>
           </tr>
         </thead>
@@ -103,9 +103,9 @@
               <td class="col-msg">{a.message}</td>
               <td class="col-res">
                 {#if a.resolved_at}
-                  <Chip variant="ok">Gelöst</Chip>
+                  <Chip variant="ok">Resolved</Chip>
                 {:else}
-                  <Chip variant="crit">Offen</Chip>
+                  <Chip variant="crit">Open</Chip>
                 {/if}
               </td>
             </tr>

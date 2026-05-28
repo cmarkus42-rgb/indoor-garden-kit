@@ -34,10 +34,10 @@
   }
 
   const primaryLinks = [
-    { href: '/',        label: 'Übersicht',  icon: '⬡' },
-    { href: '/climate', label: 'Klima',      icon: '◈' },
-    { href: '/light',   label: 'Licht',      icon: '◉' },
-    { href: '/soil',    label: 'Boden',      icon: '◫' },
+    { href: '/',        label: 'Overview',   icon: '⬡' },
+    { href: '/climate', label: 'Climate',    icon: '◈' },
+    { href: '/light',   label: 'Light',      icon: '◉' },
+    { href: '/soil',    label: 'Soil',       icon: '◫' },
   ];
 
   const moreLinks = [
@@ -141,7 +141,7 @@
       <!-- svelte-ignore a11y_no_static_element_interactions -->
       <div class="more-backdrop" onclick={closeMore}></div>
       <div class="more-dropdown">
-        <div class="more-header mono">Weitere Seiten</div>
+        <div class="more-header mono">More pages</div>
         {#each moreLinks as link}
           <a
             href={link.href}

@@ -70,23 +70,23 @@
   let photoLabel = $derived(recipe ? `${recipe.photoperiod.on}–${recipe.photoperiod.off}` : '');
 
   // ── Device grouping ────────────────────────────────────────────────────────
-  const GROUP_ORDER = ['Beleuchtung', 'Klima', 'Bodenfeuchte', 'Strom', 'Bewaesserung'] as const;
+  const GROUP_ORDER = ['Lighting', 'Climate', 'Soil moisture', 'Power', 'Irrigation'] as const;
   type Group = (typeof GROUP_ORDER)[number];
 
   function deviceGroup(d: Device): Group {
     const n = d.name.toLowerCase();
     const t = d.device_type;
-    if (t === 'shelly_dimmer') return 'Beleuchtung';
+    if (t === 'shelly_dimmer') return 'Lighting';
     if (t === 'shelly_plug') {
       if (n.includes('light') || n.includes('far') || n.includes('dawn') || n.includes('red')) {
-        return 'Beleuchtung';
+        return 'Lighting';
       }
-      return 'Strom';
+      return 'Power';
     }
-    if (t === 'blu_ht' || t === 'ecowitt_indoor') return 'Klima';
-    if (t === 'ecowitt_sensor') return 'Bodenfeuchte';
-    if (t === 'shelly_relay') return 'Bewaesserung';
-    return 'Strom';
+    if (t === 'blu_ht' || t === 'ecowitt_indoor') return 'Climate';
+    if (t === 'ecowitt_sensor') return 'Soil moisture';
+    if (t === 'shelly_relay') return 'Irrigation';
+    return 'Power';
   }
 
   let grouped = $derived.by(() => {
@@ -212,9 +212,9 @@
       <KPI label="VPD" value={vpd != null ? vpd.toFixed(2) : '—'} unit="kPa" />
     </div>
 
-    <KPI label="Bodenfeuchte" value={avgMoisture ?? '—'} unit="%" />
-    <KPI label="Licht" value={photoStatus} unit={photoLabel} />
-    <KPI label="Energie" value={totalWatts} unit="W" />
+    <KPI label="Soil moisture" value={avgMoisture ?? '—'} unit="%" />
+    <KPI label="Light" value={photoStatus} unit={photoLabel} />
+    <KPI label="Energy" value={totalWatts} unit="W" />
     <KPI label="Alerts" value={openAlerts} unit="offen" />
   </div>
 

@@ -30,7 +30,7 @@
   async function savePin() {
     pinMsg = '';
     if (!pinCurrent || !pinNew || !pinConfirm) {
-      pinMsg = 'Alle Felder ausfüllen.';
+      pinMsg = 'Fill in all fields.';
       return;
     }
     if (pinNew !== pinConfirm) {
@@ -184,7 +184,7 @@
             />
           </label>
           <label class="pin-field">
-            <span class="pin-label">Bestätigen</span>
+            <span class="pin-label">Confirm</span>
             <input
               class="pin-input"
               type="password"

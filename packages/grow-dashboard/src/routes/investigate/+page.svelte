@@ -309,8 +309,8 @@
       {#if activeChartKeys.length === 0}
         <div class="chart-empty">
           <div class="empty-icon">◎</div>
-          <p>Metrik im Layer-Panel auswählen</p>
-          <p class="empty-sub">Mehrere Metriken erzeugen synchronisierte Charts</p>
+          <p>Select a metric in the Layer panel</p>
+          <p class="empty-sub">Multiple metrics generate synchronized charts</p>
         </div>
       {:else}
         {#each activeChartKeys as key (key)}

@@ -75,11 +75,11 @@
         >
           <polyline points="4,6 8,10 12,6" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
         </svg>
-        <span class="change-count">{changeCount} {changeCount === 1 ? 'Aenderung' : 'Aenderungen'}</span>
+        <span class="change-count">{changeCount} {changeCount === 1 ? 'change' : 'changes'}</span>
       </button>
 
       <div class="bar-actions">
-        <button class="cancel-btn" onclick={onCancel} disabled={saving}>Abbrechen</button>
+        <button class="cancel-btn" onclick={onCancel} disabled={saving}>Cancel</button>
         <button
           class="save-btn"
           onclick={onSave}
