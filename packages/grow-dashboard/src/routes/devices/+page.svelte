@@ -207,8 +207,12 @@
   }
 
   function switchState(d: Device): boolean | null {
-    const v = sensorData[d.id]?.output;
-    return v != null ? v > 0 : null;
+    const s = sensorData[d.id];
+    if (!s) return false; // default off until data loads
+    if (s.output != null) return s.output > 0;
+    // Infer from power: >0.5W means on
+    if (s.power_w != null) return s.power_w > 0.5;
+    return false;
   }
 
   async function handleToggle(d: Device) {
@@ -652,7 +656,7 @@
     padding: 2px 4px;
     border-radius: var(--r-1);
     line-height: 1;
-    opacity: 0;
+    opacity: 0.4;
     transition: opacity 0.1s;
   }
 
