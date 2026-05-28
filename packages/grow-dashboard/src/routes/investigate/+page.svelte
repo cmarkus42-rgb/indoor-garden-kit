@@ -257,9 +257,9 @@
 
   function labelMetric(metric: string): string {
     const MAP: Record<string, string> = {
-      temperature: 'Temperatur', humidity: 'Luftfeuchtigkeit', vpd: 'VPD',
-      pressure: 'Druck', moisture: 'Bodenfeuchte', power: 'Leistung',
-      energy: 'Energie', battery: 'Batterie', rssi: 'RSSI',
+      temperature: 'Temperature', humidity: 'Humidity', vpd: 'VPD',
+      pressure: 'Pressure', moisture: 'Soil moisture', power: 'Power',
+      energy: 'Energy', battery: 'Battery', rssi: 'RSSI',
     };
     return MAP[metric] ?? metric;
   }
@@ -275,7 +275,7 @@
       <div class="panel-header">Layer</div>
 
       {#if metricGroups.length === 0}
-        <div class="panel-empty">Lade Geräte…</div>
+        <div class="panel-empty">Loading devices…</div>
       {:else}
         {#each metricGroups as group (group.deviceType)}
           <div class="metric-group">

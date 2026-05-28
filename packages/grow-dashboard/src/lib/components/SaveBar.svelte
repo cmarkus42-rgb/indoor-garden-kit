@@ -86,11 +86,11 @@
           disabled={hasErrors || saving}
         >
           {#if saving}
-            Speichere…
+            Saving…
           {:else if hasErrors}
-            Speichern — erst Fehler beheben
+            Save — fix errors first
           {:else}
-            Speichern
+            Save
           {/if}
         </button>
       </div>

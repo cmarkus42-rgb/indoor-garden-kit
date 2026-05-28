@@ -94,7 +94,7 @@
 <div class="page">
   <!-- ── Header ── -->
   <div class="page-header">
-    <h1 class="page-title">REZEPTE</h1>
+    <h1 class="page-title">RECIPES</h1>
     <div class="header-actions">
       <button class="btn-ghost" onclick={handleNew}>
         <svg width="13" height="13" viewBox="0 0 13 13" fill="none">

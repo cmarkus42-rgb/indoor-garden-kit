@@ -126,9 +126,9 @@
   <!-- ── KPI Strip ──────────────────────────────────────────────────────────── -->
   <div class="kpi-strip">
     <div class="kpi-group">
-      <KPI label="Gesamt Leistung" value={fmt(totalWatts, 0)} unit="W" />
+      <KPI label="Total Power" value={fmt(totalWatts, 0)} unit="W" />
       <div class="kpi-sep"></div>
-      <KPI label="Energie heute" value={fmt(totalKwh, 2)} unit="kWh" />
+      <KPI label="Energy today" value={fmt(totalKwh, 2)} unit="kWh" />
     </div>
 
     <div class="plug-pills">
@@ -145,16 +145,16 @@
   {#if loading}
     <div class="loading">
       <div class="loading-bar"></div>
-      <span class="loading-text">Lade Energiedaten…</span>
+      <span class="loading-text">Loading energy data…</span>
     </div>
   {:else if plugs.length === 0}
-    <div class="empty">Keine Plugs gefunden</div>
+    <div class="empty">No plugs found</div>
   {:else}
 
     <!-- ── Power chart ───────────────────────────────────────────────────────── -->
     <section class="chart-section">
       <header class="section-header">
-        <span class="section-label">Leistung</span>
+        <span class="section-label">Power</span>
         <span class="section-unit">W</span>
       </header>
       <TimeChart
@@ -167,15 +167,15 @@
     <!-- ── Plug detail table ─────────────────────────────────────────────────── -->
     <section class="table-section">
       <header class="section-header">
-        <span class="section-label">Plug-Details</span>
+        <span class="section-label">Plug Details</span>
       </header>
 
       <div class="plug-table">
         <div class="table-head">
-          <span>Gerät</span>
+          <span>Device</span>
           <span>Zone</span>
-          <span class="num">Leistung</span>
-          <span class="num">Energie</span>
+          <span class="num">Power</span>
+          <span class="num">Energy</span>
           <span class="num">Temp</span>
           <span>Status</span>
         </div>

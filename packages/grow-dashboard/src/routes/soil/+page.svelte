@@ -152,7 +152,7 @@
 
   <!-- ── Summary header ─────────────────────────────────────────────────────── -->
   <div class="summary-bar">
-    <div class="summary-label">Bodenfeuchte</div>
+    <div class="summary-label">Soil moisture</div>
     {#if avgMoisture !== null}
       <div class="summary-avg">
         <span class="avg-val">{avgMoisture}</span>
@@ -160,18 +160,18 @@
       </div>
     {/if}
     <div class="threshold-legend">
-      <span class="th-item warn">— 30% trocken</span>
-      <span class="th-item ok">— 60% feldkapazität</span>
+      <span class="th-item warn">— 30% dry</span>
+      <span class="th-item ok">— 60% field capacity</span>
     </div>
   </div>
 
   {#if loading}
     <div class="loading">
       <div class="loading-bar"></div>
-      <span class="loading-text">Lade Sensordaten…</span>
+      <span class="loading-text">Loading sensor data…</span>
     </div>
   {:else if devices.length === 0}
-    <div class="empty">Keine Bodensensoren gefunden</div>
+    <div class="empty">No soil sensors found</div>
   {:else}
 
     <!-- ── Tile grid 2×4 ────────────────────────────────────────────────────── -->
@@ -203,7 +203,7 @@
     <!-- ── History chart ──────────────────────────────────────────────────────── -->
     <section class="chart-section">
       <header class="section-header">
-        <span class="section-label">Verlauf Bodenfeuchte</span>
+        <span class="section-label">Soil moisture history</span>
         <span class="section-unit">% Vol.</span>
       </header>
       <TimeChart

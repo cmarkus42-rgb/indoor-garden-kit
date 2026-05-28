@@ -76,7 +76,7 @@
 
   {#if filtered.length === 0}
     <div class="empty">
-      <span class="mono muted">— keine Einträge —</span>
+      <span class="mono muted">— no entries —</span>
     </div>
   {:else}
     <div class="table-wrap">

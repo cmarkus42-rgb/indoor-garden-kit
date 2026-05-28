@@ -179,9 +179,9 @@
   <!-- ── KPI Strip ──────────────────────────────────────────────────────────── -->
   <div class="kpi-strip">
     <div class="kpi-group">
-      <KPI label="Temperatur" value={fmt(temp)} unit="°C" />
+      <KPI label="Temperature" value={fmt(temp)} unit="°C" />
       <div class="kpi-sep"></div>
-      <KPI label="Luftfeuchtigkeit" value={fmt(rh, 0)} unit="%" />
+      <KPI label="Humidity" value={fmt(rh, 0)} unit="%" />
       <div class="kpi-sep"></div>
       <div class="kpi-vpd">
         <KPI label="VPD" value={fmt(vpd, 2)} unit="kPa" />
@@ -206,14 +206,14 @@
   {#if loading}
     <div class="loading">
       <div class="loading-bar"></div>
-      <span class="loading-text">Lade Sensordaten…</span>
+      <span class="loading-text">Loading sensor data…</span>
     </div>
   {:else if devices.length === 0}
-    <div class="empty">Keine Klimasensoren gefunden</div>
+    <div class="empty">No climate sensors found</div>
   {:else}
     <section class="chart-section">
       <header class="section-header">
-        <span class="section-label">Temperatur</span>
+        <span class="section-label">Temperature</span>
         <span class="section-unit">°C</span>
       </header>
       <TimeChart
@@ -225,7 +225,7 @@
 
     <section class="chart-section">
       <header class="section-header">
-        <span class="section-label">Luftfeuchtigkeit</span>
+        <span class="section-label">Humidity</span>
         <span class="section-unit">%</span>
       </header>
       <TimeChart

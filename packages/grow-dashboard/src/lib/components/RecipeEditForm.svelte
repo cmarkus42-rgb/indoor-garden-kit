@@ -48,7 +48,7 @@
   /* ---------- validation ---------- */
 
   let errPhotoperiod = $derived(
-    recipe.photoperiod.on === recipe.photoperiod.off ? 'On und Off duerfen nicht gleich sein' : ''
+    recipe.photoperiod.on === recipe.photoperiod.off ? 'On and Off cannot be the same' : ''
   );
   let errMaxMin = $derived(
     recipe.dimming.max_pct <= recipe.dimming.min_pct ? 'Max muss groesser als Min sein' : ''

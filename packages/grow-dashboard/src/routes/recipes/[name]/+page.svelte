@@ -102,7 +102,7 @@
 <div class="page">
   <!-- ── Breadcrumb ── -->
   <nav class="breadcrumb" aria-label="Breadcrumb">
-    <a class="bc-link" href="/recipes">REZEPTE</a>
+    <a class="bc-link" href="/recipes">RECIPES</a>
     <span class="bc-sep">/</span>
     <span class="bc-current">{name.toUpperCase()}</span>
   </nav>
@@ -299,7 +299,7 @@
       <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
         <path d="M7.5 2L2 6.5l5.5 4.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
       </svg>
-      Rezepte
+      Recipes
     </button>
     <div class="save-spacer"></div>
     <button class="btn-save" onclick={save} disabled={saving}>

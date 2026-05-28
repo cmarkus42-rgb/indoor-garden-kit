@@ -34,12 +34,12 @@
       return;
     }
     if (pinNew !== pinConfirm) {
-      pinMsg = 'Neue PINs stimmen nicht überein.';
+      pinMsg = 'New PINs do not match.';
       pinOk = false;
       return;
     }
     if (!/^\d{4}$/.test(pinNew)) {
-      pinMsg = 'PIN muss 4-stellig numerisch sein.';
+      pinMsg = 'PIN must be 4 numeric digits.';
       pinOk = false;
       return;
     }
@@ -50,17 +50,17 @@
         new_pin: pinNew,
       });
       if (res.ok) {
-        pinMsg = 'PIN erfolgreich geändert.';
+        pinMsg = 'PIN changed successfully.';
         pinOk = true;
         pinCurrent = '';
         pinNew = '';
         pinConfirm = '';
       } else {
-        pinMsg = res.error ?? 'Fehler beim Ändern.';
+        pinMsg = res.error ?? 'Error changing PIN.';
         pinOk = false;
       }
     } catch {
-      pinMsg = 'Server nicht erreichbar.';
+      pinMsg = 'Server unreachable.';
       pinOk = false;
     } finally {
       pinSaving = false;
@@ -101,12 +101,12 @@
   }
 
   function loopStatusLabel(loop: unknown): string {
-    if (typeof loop !== 'object' || loop === null) return 'Unbekannt';
+    if (typeof loop !== 'object' || loop === null) return 'Unknown';
     const l = loop as Record<string, unknown>;
-    if (l.error) return 'Fehler';
-    if (l.status === 'running') return 'Aktiv';
-    if (l.status === 'paused') return 'Pausiert';
-    return String(l.status ?? 'Unbekannt');
+    if (l.error) return 'Error';
+    if (l.status === 'running') return 'Active';
+    if (l.status === 'paused') return 'Paused';
+    return String(l.status ?? 'Unknown');
   }
 
   function formatLoopKey(key: string): string {
@@ -197,7 +197,7 @@
         </div>
         <div class="pin-action">
           <button class="btn primary" onclick={savePin} disabled={pinSaving}>
-            {pinSaving ? 'Speichert…' : 'Speichern'}
+            {pinSaving ? 'Saving…' : 'Save'}
           </button>
           {#if pinMsg}
             <span class="pin-msg" class:ok={pinOk} class:err={!pinOk}>{pinMsg}</span>
@@ -212,7 +212,7 @@
     <div class="section-h">System</div>
     <div class="section-body">
       {#if Object.keys(pollingLoops).length === 0}
-        <span class="muted mono small">Keine Polling-Daten</span>
+        <span class="muted mono small">No polling data</span>
       {:else}
         <div class="loop-list">
           {#each Object.entries(pollingLoops) as [key, loop]}
@@ -227,7 +227,7 @@
                 <Chip variant={st}>{loopStatusLabel(loop)}</Chip>
                 {#if ldata.last_run}
                   <span class="kv-pair">
-                    <span class="kv-key-s">Letzter Lauf</span>
+                    <span class="kv-key-s">Last run</span>
                     <span class="kv-val-s mono">{String(ldata.last_run)}</span>
                   </span>
                 {/if}
@@ -242,12 +242,12 @@
     </div>
   </section>
 
-  <!-- SECTION: Geräte -->
+  <!-- SECTION: Devices -->
   <section class="settings-section">
-    <div class="section-h">Geräte</div>
+    <div class="section-h">Devices</div>
     {#if devices.length === 0}
       <div class="section-body">
-        <span class="muted mono small">Keine Geräte</span>
+        <span class="muted mono small">No devices</span>
       </div>
     {:else}
       <div class="device-list">
