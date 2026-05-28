@@ -238,6 +238,8 @@
                     {metric}
                     {unit}
                     status={tileStatus(d)}
+                    lastSeen={d.last_seen}
+                    periodic={d.device_type === 'blu_ht'}
                   />
                 </div>
               {/each}

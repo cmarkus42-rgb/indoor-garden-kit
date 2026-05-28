@@ -10,9 +10,26 @@
     unit: string;
     status: TileStatus;
     sparklinePoints?: number[];
+    lastSeen?: string;
+    periodic?: boolean;
   }
 
-  const { label, sub, metric, unit, status, sparklinePoints }: Props = $props();
+  const { label, sub, metric, unit, status, sparklinePoints, lastSeen, periodic }: Props = $props();
+
+  function formatTimeAgo(isoDate: string): string {
+    const diffMin = Math.floor((Date.now() - new Date(isoDate).getTime()) / 60_000);
+    if (diffMin < 1) return 'just now';
+    if (diffMin < 60) return `${diffMin} min ago`;
+    const diffH = Math.floor(diffMin / 60);
+    if (diffH < 24) return `${diffH}h ago`;
+    return `${Math.floor(diffH / 24)}d ago`;
+  }
+
+  const isStale = $derived(
+    lastSeen != null && (Date.now() - new Date(lastSeen).getTime()) > 10 * 60_000
+  );
+
+  const timeAgo = $derived(lastSeen != null ? formatTimeAgo(lastSeen) : null);
 
   const dotVariant = $derived<'ok' | 'warn' | 'crit'>(
     status === 'offline' ? 'crit' : status
@@ -36,7 +53,7 @@
   });
 </script>
 
-<div class="tile" class:offline={status === 'offline'} data-status={status}>
+<div class="tile" class:offline={status === 'offline'} class:stale={isStale} data-status={status}>
   {#if status === 'offline'}
     <div class="offline-overlay" aria-hidden="true"></div>
   {/if}
@@ -48,13 +65,18 @@
         <span class="tile-sub">{sub}</span>
       {/if}
     </div>
-    <StatusDot variant={dotVariant} live={status === 'ok'} />
+    <StatusDot variant={dotVariant} live={status === 'ok' && !periodic} />
   </div>
 
   <div class="tile-body">
-    <div class="tile-metric-row">
-      <span class="tile-metric">{metric}</span>
-      <span class="tile-unit">{unit}</span>
+    <div class="tile-metric-col">
+      <div class="tile-metric-row">
+        <span class="tile-metric">{metric}</span>
+        <span class="tile-unit">{unit}</span>
+      </div>
+      {#if periodic && timeAgo}
+        <span class="tile-timestamp">{timeAgo}</span>
+      {/if}
     </div>
     {#if sparklinePoints && sparklinePoints.length >= 2}
       <svg class="sparkline" viewBox="0 0 50 20" width="50" height="20" aria-hidden="true">
@@ -86,6 +108,12 @@
 
   .tile.offline {
     opacity: 0.7;
+  }
+
+  .tile.stale .tile-metric,
+  .tile.stale .tile-unit {
+    color: var(--ink-4);
+    opacity: 0.6;
   }
 
   .offline-overlay {
@@ -140,10 +168,25 @@
     gap: var(--s-2);
   }
 
+  .tile-metric-col {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+
   .tile-metric-row {
     display: flex;
     align-items: baseline;
     gap: 3px;
+  }
+
+  .tile-timestamp {
+    font-family: var(--font-mono);
+    font-size: var(--t-9);
+    color: var(--ink-4);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    line-height: 1;
   }
 
   .tile-metric {
