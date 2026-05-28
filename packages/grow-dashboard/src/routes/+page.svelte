@@ -122,6 +122,24 @@
   let rhChart       = $derived(buildChart(climateDevices, 'humidity'));
   let moistureChart = $derived(buildChart(soilDevices, 'soil_moisture'));
 
+  // ── Staleness helpers ───────────────────────────────────────────────────
+  function formatTimeAgo(isoDate: string): string {
+    const diffMin = Math.floor((Date.now() - new Date(isoDate).getTime()) / 60_000);
+    if (diffMin < 1) return 'just now';
+    if (diffMin < 60) return `${diffMin} min ago`;
+    const diffH = Math.floor(diffMin / 60);
+    if (diffH < 24) return `${diffH}h ago`;
+    return `${Math.floor(diffH / 24)}d ago`;
+  }
+
+  const STALE_MS = 10 * 60_000;
+
+  const climateStale = $derived.by(() => {
+    const bluDevices = climateDevices.filter(d => d.device_type === 'blu_ht');
+    if (!bluDevices.length) return false;
+    return bluDevices.every(d => Date.now() - new Date(d.last_seen).getTime() > STALE_MS);
+  });
+
   // ── Status helpers ──────────────────────────────────────────────────────
   function vpdStatus(v: number | null): 'ok' | 'warn' | 'crit' {
     if (v === null) return 'crit';
@@ -213,8 +231,8 @@
       <div class="ov-pills">
         {#each climateDevices as d (d.id)}
           <span class="ov-pill">
-            <StatusDot variant={d.status === 'online' ? 'ok' : 'crit'} live={d.status === 'online'} />
-            {d.name}
+            <StatusDot variant={d.status === 'online' ? 'ok' : 'crit'} live={d.status === 'online' && d.device_type !== 'blu_ht'} />
+            {d.name}{#if d.device_type === 'blu_ht'} · {formatTimeAgo(d.last_seen)}{/if}
           </span>
         {/each}
       </div>
@@ -225,7 +243,7 @@
     {:else if climateDevices.length === 0}
       <p class="ov-empty">No climate sensors</p>
     {:else}
-      <div class="kpi-row">
+      <div class="kpi-row" class:stale={climateStale}>
         <KPI label="Temperature" value={fmt(avgTemp)} unit="°C" />
         <KPI label="Humidity" value={fmt(avgRh, 0)} unit="%" />
         <KPI label="VPD" value={fmt(avgVpd, 2)} unit="kPa" />
@@ -449,6 +467,12 @@
   .kpi-row :global(.kpi) {
     flex: 1;
     min-width: 0;
+  }
+
+  .kpi-row.stale :global(.kpi-value),
+  .kpi-row.stale :global(.kpi-unit) {
+    color: var(--ink-4);
+    opacity: 0.6;
   }
 
   /* ── Chart pair ──────────────────────────────────────────────────────── */
