@@ -61,7 +61,7 @@
 
   let avgMoisture = $derived.by(() => {
     const vals = devices
-      .filter(d => d.device_type === 'ecowitt_sensor' && d.name.startsWith('soil-'))
+      .filter(d => d.device_type === 'ecowitt_sensor')
       .map(d => sensorData[d.id]?.soil_moisture)
       .filter((v): v is number => v !== undefined);
     if (!vals.length) return null;
@@ -651,17 +651,23 @@
     background: none;
     border: none;
     cursor: pointer;
-    color: var(--ink-4);
+    color: var(--ink-3);
     font-size: var(--t-11);
-    padding: 2px 4px;
+    padding: 2px 6px;
     border-radius: var(--r-1);
     line-height: 1;
-    opacity: 0.4;
-    transition: opacity 0.1s;
+    opacity: 0;
+    transition: opacity 0.15s, background 0.15s;
   }
 
   .tile-wrap:hover .edit-btn {
-    opacity: 1;
+    opacity: 0.8;
+    background: oklch(0% 0 0 / 0.3);
+  }
+
+  .edit-btn:hover {
+    opacity: 1 !important;
+    background: oklch(0% 0 0 / 0.5);
   }
 
   .name-input {
@@ -827,6 +833,12 @@
   }
 
   /* ── Groups section ──────────────────────────────────────────────────────── */
+  .devices-panel > .device-group:last-child {
+    border-top: 1px solid var(--line);
+    padding-top: var(--s-4);
+    margin-top: var(--s-2);
+  }
+
   .group-header-row {
     display: flex;
     align-items: center;
