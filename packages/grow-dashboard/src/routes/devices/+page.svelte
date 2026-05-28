@@ -462,6 +462,48 @@
     grid-column: span 2;
   }
 
+  /* ── Tile name editing ──────────────────────────────────────────────────── */
+  .tile-wrap {
+    position: relative;
+  }
+
+  .edit-btn {
+    position: absolute;
+    top: var(--s-2);
+    right: var(--s-2);
+    z-index: 2;
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--ink-4);
+    font-size: var(--t-11);
+    padding: 2px 4px;
+    border-radius: var(--r-1);
+    line-height: 1;
+    opacity: 0;
+    transition: opacity 0.1s;
+  }
+
+  .tile-wrap:hover .edit-btn {
+    opacity: 1;
+  }
+
+  .name-input {
+    position: absolute;
+    top: var(--s-2);
+    left: var(--s-3);
+    right: var(--s-3);
+    z-index: 2;
+    background: var(--bg-0);
+    border: 1px solid var(--accent);
+    border-radius: var(--r-1);
+    color: var(--ink-1);
+    font-family: var(--font-sans);
+    font-size: var(--t-12);
+    padding: 2px var(--s-2);
+    outline: none;
+  }
+
   /* ── Sidebar ─────────────────────────────────────────────────────────────── */
   .sidebar {
     display: flex;
