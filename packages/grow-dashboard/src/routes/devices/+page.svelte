@@ -60,6 +60,13 @@
 
   let openAlerts = $derived(alerts.filter(a => a.resolved_at === null).length);
 
+  const STALE_MS = 10 * 60_000;
+  let climateStale = $derived.by(() => {
+    const bluDevices = devices.filter(d => d.device_type === 'blu_ht');
+    if (!bluDevices.length) return false;
+    return bluDevices.every(d => Date.now() - new Date(d.last_seen).getTime() > STALE_MS);
+  });
+
   let photoStatus = $derived.by(() => {
     if (!recipe) return '—';
     const [onH, onM] = recipe.photoperiod.on.split(':').map(Number);
@@ -267,7 +274,7 @@
   <!-- ── Hero KPI Strip ─────────────────────────────────────────────────── -->
   <div class="kpi-strip">
     <!-- Composite Klima (1.4fr) -->
-    <div class="kpi-klima-wrapper">
+    <div class="kpi-klima-wrapper" class:stale={climateStale}>
       <KPI label="Temp" value={temp != null ? temp.toFixed(1) : '—'} unit="°C" />
       <div class="kpi-divider"></div>
       <KPI label="RH" value={rh != null ? rh.toFixed(0) : '—'} unit="%" />
@@ -409,6 +416,12 @@
     border-radius: 0;
     background: transparent;
     min-width: 0;
+  }
+
+  .kpi-klima-wrapper.stale :global(.kpi-value),
+  .kpi-klima-wrapper.stale :global(.kpi-unit) {
+    color: var(--ink-4);
+    opacity: 0.6;
   }
 
   .kpi-divider {
