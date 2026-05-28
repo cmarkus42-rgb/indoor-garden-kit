@@ -40,7 +40,7 @@
   );
 
   let avgMoisture = $derived.by(() => {
-    const vals = Array.from({ length: 8 }, (_, i) => sensorData[`soil-${i + 1}`]?.moisture)
+    const vals = Array.from({ length: 8 }, (_, i) => sensorData[`soil-0${i + 1}`]?.soil_moisture)
       .filter((v): v is number => v !== undefined);
     if (!vals.length) return null;
     return Math.round(vals.reduce((a, b) => a + b, 0) / vals.length);
@@ -84,7 +84,7 @@
       return 'Strom';
     }
     if (t === 'blu_ht' || t === 'ecowitt_indoor') return 'Klima';
-    if (t === 'ecowitt_soil') return 'Bodenfeuchte';
+    if (t === 'ecowitt_sensor') return 'Bodenfeuchte';
     if (t === 'shelly_relay') return 'Bewaesserung';
     return 'Strom';
   }
@@ -115,8 +115,8 @@
         return { metric: s?.power != null ? s.power.toFixed(0) : '—', unit: 'W' };
       case 'blu_ht':
         return { metric: s?.temperature != null ? s.temperature.toFixed(1) : '—', unit: '°C' };
-      case 'ecowitt_soil':
-        return { metric: s?.moisture != null ? String(Math.round(s.moisture)) : '—', unit: '%' };
+      case 'ecowitt_sensor':
+        return { metric: s?.soil_moisture != null ? String(Math.round(s.soil_moisture)) : '—', unit: '%' };
       case 'ecowitt_indoor':
         return { metric: s?.temperature != null ? s.temperature.toFixed(1) : '—', unit: '°C' };
       case 'shelly_relay':
@@ -146,7 +146,7 @@
   async function loadSensors() {
     const ids = [
       'blu-01', 'blu-02',
-      'soil-1', 'soil-2', 'soil-3', 'soil-4', 'soil-5', 'soil-6', 'soil-7', 'soil-8',
+      'soil-01', 'soil-02', 'soil-03', 'soil-04', 'soil-05', 'soil-06', 'soil-07', 'soil-08',
       'plug-01', 'plug-02', 'plug-03', 'plug-04', 'plug-05'
     ];
     await Promise.allSettled(

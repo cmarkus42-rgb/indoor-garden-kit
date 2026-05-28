@@ -28,7 +28,7 @@
   // ── Load ──────────────────────────────────────────────────────────────────────
   async function load() {
     const status = await get<StatusResponse>('/api/status');
-    devices = status.devices.filter(d => d.device_type === 'ecowitt_soil');
+    devices = status.devices.filter(d => d.device_type === 'ecowitt_sensor');
 
     const map = new Map<string, SensorReading[]>();
     await Promise.all(
@@ -74,7 +74,7 @@
     for (const d of devices) {
       const m = new Map<number, number>();
       for (const r of readings.get(d.id) ?? []) {
-        if (r.metric === 'moisture') {
+        if (r.metric === 'soil_moisture') {
           const ts = Math.round(new Date(r.timestamp).getTime() / 1000);
           allTs.add(ts);
           m.set(ts, r.value);
@@ -141,7 +141,7 @@
   // Average moisture across all channels
   let avgMoisture = $derived.by(() => {
     const vals = devices
-      .map(d => latestVal(d.id, 'moisture'))
+      .map(d => latestVal(d.id, 'soil_moisture'))
       .filter((v): v is number => v !== null);
     if (!vals.length) return null;
     return Math.round(vals.reduce((a, b) => a + b, 0) / vals.length);
@@ -177,7 +177,7 @@
     <!-- ── Tile grid 2×4 ────────────────────────────────────────────────────── -->
     <div class="tile-grid">
       {#each devices as d, i (d.id)}
-        {@const moisture = latestVal(d.id, 'moisture')}
+        {@const moisture = latestVal(d.id, 'soil_moisture')}
         {@const battery = latestVal(d.id, 'battery')}
         <div class="tile-cell">
           <DeviceTile
