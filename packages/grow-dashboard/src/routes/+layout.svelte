@@ -34,30 +34,26 @@
   }
 
   const primaryLinks = [
-    { href: '/',        label: 'Overview',   icon: '⬡' },
-    { href: '/climate', label: 'Climate',    icon: '◈' },
-    { href: '/light',   label: 'Light',      icon: '◉' },
-    { href: '/soil',    label: 'Soil',       icon: '◫' },
+    { href: '/',          label: 'Overview',  icon: '⬡' },
+    { href: '/devices',   label: 'Devices',   icon: '◧' },
+    { href: '/energy',    label: 'Energy',    icon: '◉' },
+    { href: '/recipes',   label: 'Recipes',   icon: '◈' },
   ];
 
   const moreLinks = [
-    { href: '/energy',      label: 'Energy'       },
-    { href: '/log',         label: 'Log'          },
-    { href: '/recipes',     label: 'Recipes'      },
-    { href: '/settings',    label: 'Settings'     },
     { href: '/investigate', label: 'Investigate'  },
+    { href: '/log',         label: 'Log'          },
+    { href: '/settings',    label: 'Settings'     },
   ];
 
   const desktopLinks = [
-    { href: '/',            label: 'Overview'     },
-    { href: '/climate',     label: 'Climate'      },
-    { href: '/soil',        label: 'Soil'         },
-    { href: '/light',       label: 'Light'        },
-    { href: '/recipes',     label: 'Recipes'      },
-    { href: '/energy',      label: 'Energy'       },
-    { href: '/log',         label: 'Log'          },
-    { href: '/investigate', label: 'Investigate'  },
-    { href: '/settings',    label: 'Settings'     }
+    { href: '/',            label: 'Overview'    },
+    { href: '/devices',     label: 'Devices'     },
+    { href: '/recipes',     label: 'Recipes'     },
+    { href: '/energy',      label: 'Energy'      },
+    { href: '/investigate', label: 'Investigate' },
+    { href: '/log',         label: 'Log'         },
+    { href: '/settings',    label: 'Settings'    },
   ];
 
   const isMoreActive = $derived(
