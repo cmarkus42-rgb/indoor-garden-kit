@@ -41,10 +41,10 @@
   ];
 
   const moreLinks = [
-    { href: '/energy',      label: 'Energie'      },
-    { href: '/log',         label: 'Protokoll'    },
+    { href: '/energy',      label: 'Energy'       },
+    { href: '/log',         label: 'Log'          },
     { href: '/recipes',     label: 'Recipes'      },
-    { href: '/settings',    label: 'Einstellungen'},
+    { href: '/settings',    label: 'Settings'     },
     { href: '/investigate', label: 'Investigate'  },
   ];
 
