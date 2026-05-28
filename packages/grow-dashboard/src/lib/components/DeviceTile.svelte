@@ -12,9 +12,11 @@
     sparklinePoints?: number[];
     lastSeen?: string;
     periodic?: boolean;
+    toggled?: boolean | null;
+    onToggle?: () => void;
   }
 
-  const { label, sub, metric, unit, status, sparklinePoints, lastSeen, periodic }: Props = $props();
+  const { label, sub, metric, unit, status, sparklinePoints, lastSeen, periodic, toggled, onToggle }: Props = $props();
 
   function formatTimeAgo(isoDate: string): string {
     const diffMin = Math.floor((Date.now() - new Date(isoDate).getTime()) / 60_000);
@@ -89,6 +91,17 @@
           stroke-linejoin="round"
         />
       </svg>
+    {/if}
+    {#if onToggle != null && toggled != null}
+      <button
+        class="toggle"
+        class:on={toggled}
+        onclick={onToggle}
+        aria-label={toggled ? 'Turn off' : 'Turn on'}
+        aria-pressed={toggled}
+      >
+        <span class="toggle-thumb"></span>
+      </button>
     {/if}
   </div>
 </div>
@@ -206,5 +219,38 @@
   .sparkline {
     flex-shrink: 0;
     display: block;
+  }
+
+  .toggle {
+    flex-shrink: 0;
+    position: relative;
+    width: 32px;
+    height: 18px;
+    border-radius: var(--r-pill);
+    background: var(--line);
+    border: none;
+    cursor: pointer;
+    padding: 0;
+    transition: background 0.15s;
+    align-self: flex-end;
+  }
+
+  .toggle.on {
+    background: var(--accent);
+  }
+
+  .toggle-thumb {
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: var(--bg-0);
+    transition: transform 0.15s;
+  }
+
+  .toggle.on .toggle-thumb {
+    transform: translateX(14px);
   }
 </style>

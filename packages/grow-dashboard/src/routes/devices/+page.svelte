@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { get } from '$lib/api.js';
+  import { get, put, post } from '$lib/api.js';
   import { sseLatest } from '$lib/sse.js';
   import type {
     StatusResponse,
@@ -22,6 +22,10 @@
   let recipe = $state<RecipeData | null>(null);
   let nowMin = $state(getNowMin());
   let sensorData = $state<Record<string, Record<string, number>>>({});
+
+  // Inline device-name editing
+  let editingId = $state<string | null>(null);
+  let editValue = $state('');
 
   function getNowMin(): number {
     const d = new Date();
@@ -142,6 +146,65 @@
     return h < 24 ? `${h}h` : `${Math.floor(h / 24)}d`;
   }
 
+  // ── Inline name editing ────────────────────────────────────────────────────
+  function startEdit(d: Device) {
+    editingId = d.id;
+    editValue = d.name;
+  }
+
+  function cancelEdit() {
+    editingId = null;
+    editValue = '';
+  }
+
+  async function saveEdit(d: Device) {
+    const trimmed = editValue.trim();
+    if (!trimmed) { cancelEdit(); return; }
+    try {
+      await put<Device>(`/api/device/${d.id}/name`, { name: trimmed });
+      devices = devices.map(dev => dev.id === d.id ? { ...dev, name: trimmed } : dev);
+      editingId = null;
+    } catch { /* keep edit open so user can retry */ }
+  }
+
+  // ── Device control ─────────────────────────────────────────────────────────
+  function isControllable(d: Device): boolean {
+    return d.device_type === 'shelly_plug' || d.device_type === 'shelly_relay';
+  }
+
+  function switchState(d: Device): boolean | null {
+    const v = sensorData[d.id]?.output;
+    return v != null ? v > 0 : null;
+  }
+
+  async function handleToggle(d: Device) {
+    const current = switchState(d);
+    const next = current == null ? true : !current;
+    if (!window.confirm(`Turn ${d.name} ${next ? 'ON' : 'OFF'}?`)) return;
+    try {
+      await post(`/api/device/${d.id}/command`, {
+        method: 'Switch.Set',
+        params: { id: 0, on: next }
+      });
+      sensorData = { ...sensorData, [d.id]: { ...(sensorData[d.id] ?? {}), output: next ? 1 : 0 } };
+    } catch { /* ignore, real state will sync on next poll */ }
+  }
+
+  // ── Alert actions ──────────────────────────────────────────────────────────
+  async function dismissAlert(id: string) {
+    try {
+      await post(`/api/alerts/${id}/resolve`, {});
+      alerts = alerts.filter(a => a.id !== id);
+    } catch { /* ignore */ }
+  }
+
+  async function clearAllAlerts() {
+    try {
+      await post('/api/alerts/resolve-all', {});
+      alerts = alerts.filter(a => a.resolved_at !== null);
+    } catch { /* ignore */ }
+  }
+
   // ── Data loading ───────────────────────────────────────────────────────────
   async function loadSensors() {
     const ids = [
@@ -231,15 +294,32 @@
             <div class="tiles-grid">
               {#each groupDevices as d (d.id)}
                 {@const { metric, unit } = tileMetric(d)}
-                <div class:main-tile={d.id === mainLightId}>
+                <div class="tile-wrap" class:main-tile={d.id === mainLightId}>
+                  {#if editingId === d.id}
+                    <input
+                      class="name-input"
+                      bind:value={editValue}
+                      autofocus
+                      onkeydown={(e) => {
+                        if (e.key === 'Enter') saveEdit(d);
+                        else if (e.key === 'Escape') cancelEdit();
+                      }}
+                    />
+                  {:else}
+                    <button class="edit-btn" onclick={() => startEdit(d)} title="Rename device"
+                      >✎</button
+                    >
+                  {/if}
                   <DeviceTile
-                    label={d.name}
+                    label={editingId === d.id ? editValue : d.name}
                     sub={d.zone}
                     {metric}
                     {unit}
                     status={tileStatus(d)}
                     lastSeen={d.last_seen}
                     periodic={d.device_type === 'blu_ht'}
+                    toggled={isControllable(d) ? switchState(d) : null}
+                    onToggle={isControllable(d) ? () => handleToggle(d) : undefined}
                   />
                 </div>
               {/each}
@@ -263,22 +343,26 @@
       <div class="sidebar-panel alerts-panel">
         <div class="alerts-header">
           <span class="group-header">Alerts</span>
-          {#if openAlerts > 0}
-            <span class="alert-badge">{openAlerts}</span>
-          {/if}
+          <div class="alerts-header-right">
+            {#if openAlerts > 0}
+              <span class="alert-badge">{openAlerts}</span>
+              <button class="clear-all-btn" onclick={clearAllAlerts}>Clear all</button>
+            {/if}
+          </div>
         </div>
 
-        {#if alerts.length === 0}
+        {#if alerts.filter(a => a.resolved_at === null).length === 0}
           <p class="empty-state">No alerts</p>
         {:else}
           <ul class="alert-list">
-            {#each alerts as a (a.id)}
-              <li class="alert-item" class:resolved={a.resolved_at !== null}>
-                <StatusDot variant={alertTone(a.tier)} live={a.resolved_at === null} />
+            {#each alerts.filter(a => a.resolved_at === null) as a (a.id)}
+              <li class="alert-item">
+                <StatusDot variant={alertTone(a.tier)} live={true} />
                 <div class="alert-body">
                   <span class="alert-msg">{a.message}</span>
                   <span class="alert-meta">{a.source} · {relTime(a.timestamp)}</span>
                 </div>
+                <button class="dismiss-btn" onclick={() => dismissAlert(a.id)} aria-label="Dismiss alert">✕</button>
               </li>
             {/each}
           </ul>
@@ -411,6 +495,12 @@
     justify-content: space-between;
   }
 
+  .alerts-header-right {
+    display: flex;
+    align-items: center;
+    gap: var(--s-2);
+  }
+
   .alert-badge {
     font-family: var(--font-mono);
     font-size: var(--t-9);
@@ -420,6 +510,42 @@
     border-radius: var(--r-pill);
     font-variant-numeric: tabular-nums;
     line-height: 1.6;
+  }
+
+  .clear-all-btn {
+    font-family: var(--font-mono);
+    font-size: var(--t-9);
+    color: var(--ink-3);
+    background: none;
+    border: 1px solid var(--line);
+    border-radius: var(--r-1);
+    padding: 1px 6px;
+    cursor: pointer;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    line-height: 1.6;
+  }
+
+  .clear-all-btn:hover {
+    color: var(--ink-1);
+    border-color: var(--ink-3);
+  }
+
+  .dismiss-btn {
+    flex-shrink: 0;
+    margin-left: auto;
+    background: none;
+    border: none;
+    color: var(--ink-4);
+    cursor: pointer;
+    font-size: var(--t-10);
+    padding: 0 0 0 var(--s-2);
+    line-height: 1;
+    align-self: center;
+  }
+
+  .dismiss-btn:hover {
+    color: var(--ink-1);
   }
 
   .alert-list {
