@@ -33,29 +33,45 @@
     return d.getHours() * 60 + d.getMinutes();
   }
 
-  // ── KPI derivations ────────────────────────────────────────────────────────
-  let temp = $derived(
-    sensorData['blu-01']?.temperature ?? sensorData['blu-02']?.temperature ?? null
-  );
-  let rh = $derived(
-    sensorData['blu-01']?.humidity ?? sensorData['blu-02']?.humidity ?? null
-  );
-  let vpd = $derived(
-    sensorData['blu-01']?.vpd ?? sensorData['blu-02']?.vpd ?? null
-  );
+  // ── KPI derivations (dynamic from loaded devices) ──────────────────────────
+  let temp = $derived.by(() => {
+    const blu = devices.filter(d => d.device_type === 'blu_ht');
+    for (const d of blu) {
+      const v = sensorData[d.id]?.temperature;
+      if (v !== undefined) return v;
+    }
+    return null;
+  });
+  let rh = $derived.by(() => {
+    const blu = devices.filter(d => d.device_type === 'blu_ht');
+    for (const d of blu) {
+      const v = sensorData[d.id]?.humidity;
+      if (v !== undefined) return v;
+    }
+    return null;
+  });
+  let vpd = $derived.by(() => {
+    const blu = devices.filter(d => d.device_type === 'blu_ht');
+    for (const d of blu) {
+      const v = sensorData[d.id]?.vpd;
+      if (v !== undefined) return v;
+    }
+    return null;
+  });
 
   let avgMoisture = $derived.by(() => {
-    const vals = Array.from({ length: 8 }, (_, i) => sensorData[`soil-0${i + 1}`]?.soil_moisture)
+    const vals = devices
+      .filter(d => d.device_type === 'ecowitt_sensor' && d.name.startsWith('soil-'))
+      .map(d => sensorData[d.id]?.soil_moisture)
       .filter((v): v is number => v !== undefined);
     if (!vals.length) return null;
     return Math.round(vals.reduce((a, b) => a + b, 0) / vals.length);
   });
 
   let totalWatts = $derived.by(() => {
-    const sum = ['plug-01', 'plug-02', 'plug-03', 'plug-04', 'plug-05'].reduce(
-      (acc, id) => acc + (sensorData[id]?.power ?? 0),
-      0
-    );
+    const sum = devices
+      .filter(d => d.device_type === 'shelly_plug')
+      .reduce((acc, d) => acc + (sensorData[d.id]?.power_w ?? 0), 0);
     return sum > 0 ? sum.toFixed(0) : '—';
   });
 
@@ -134,7 +150,7 @@
     switch (d.device_type) {
       case 'shelly_plug':
       case 'shelly_dimmer':
-        return { metric: s?.power != null ? s.power.toFixed(0) : '—', unit: 'W' };
+        return { metric: s?.power_w != null ? s.power_w.toFixed(0) : '—', unit: 'W' };
       case 'blu_ht':
         return { metric: s?.temperature != null ? s.temperature.toFixed(1) : '—', unit: '°C' };
       case 'ecowitt_sensor':
@@ -278,25 +294,23 @@
 
   // ── Data loading ───────────────────────────────────────────────────────────
   async function loadSensors() {
-    const ids = [
-      'blu-01', 'blu-02',
-      'soil-01', 'soil-02', 'soil-03', 'soil-04', 'soil-05', 'soil-06', 'soil-07', 'soil-08',
-      'plug-01', 'plug-02', 'plug-03', 'plug-04', 'plug-05'
-    ];
+    if (!devices.length) return;
+    const batch: Record<string, Record<string, number>> = {};
     await Promise.allSettled(
-      ids.map(async id => {
+      devices.map(async d => {
         try {
-          const res = await get<ReadingsResponse>(`/api/readings/${id}?limit=5`);
+          const res = await get<ReadingsResponse>(`/api/readings/${d.id}?limit=10`);
           if (res.readings?.length) {
             const latest: Record<string, number> = {};
             for (const r of res.readings) {
               if (!(r.metric in latest)) latest[r.metric] = r.value;
             }
-            sensorData = { ...sensorData, [id]: latest };
+            batch[d.id] = latest;
           }
         } catch { /* device has no readings yet */ }
       })
     );
+    sensorData = { ...sensorData, ...batch };
   }
 
   async function load() {
