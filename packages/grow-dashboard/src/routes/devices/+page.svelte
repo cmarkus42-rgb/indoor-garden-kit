@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { get, put, post } from '$lib/api.js';
+  import { get, put, post, getGroups, createGroup, updateGroup, deleteGroup } from '$lib/api.js';
   import { sseLatest } from '$lib/sse.js';
   import type {
     StatusResponse,
@@ -8,7 +8,8 @@
     Alert,
     DayPlanResponse,
     RecipeData,
-    ReadingsResponse
+    ReadingsResponse,
+    DeviceGroup
   } from '$lib/types.js';
   import { onMount } from 'svelte';
   import KPI from '$lib/components/KPI.svelte';
@@ -59,6 +60,16 @@
   });
 
   let openAlerts = $derived(alerts.filter(a => a.resolved_at === null).length);
+
+  // ── Group management ────────────────────────────────────────────────────────
+  let groups = $state<DeviceGroup[]>([]);
+  // groupEditId: null = closed, 'new' = creating, <uuid string> = editing existing
+  let groupEditId = $state<string | null>(null);
+  let groupForm = $state<{ name: string; category: DeviceGroup['category']; device_ids: string[] }>({
+    name: '',
+    category: 'light',
+    device_ids: []
+  });
 
   const STALE_MS = 10 * 60_000;
   let climateStale = $derived.by(() => {
@@ -212,6 +223,59 @@
     } catch { /* ignore */ }
   }
 
+  // ── Group management ────────────────────────────────────────────────────────
+  async function loadGroups() {
+    try {
+      const res = await getGroups();
+      groups = res.groups;
+    } catch { /* ignore */ }
+  }
+
+  function startNewGroup() {
+    groupEditId = 'new';
+    groupForm = { name: '', category: 'light', device_ids: [] };
+  }
+
+  function startEditGroup(g: DeviceGroup) {
+    groupEditId = g.id;
+    groupForm = { name: g.name, category: g.category, device_ids: [...g.device_ids] };
+  }
+
+  function cancelGroup() {
+    groupEditId = null;
+  }
+
+  function toggleGroupDevice(deviceId: string) {
+    if (groupForm.device_ids.includes(deviceId)) {
+      groupForm.device_ids = groupForm.device_ids.filter(id => id !== deviceId);
+    } else {
+      groupForm.device_ids = [...groupForm.device_ids, deviceId];
+    }
+  }
+
+  async function saveGroup() {
+    const body = { name: groupForm.name.trim(), category: groupForm.category, device_ids: groupForm.device_ids };
+    if (!body.name) return;
+    try {
+      if (groupEditId === 'new') {
+        const created = await createGroup(body);
+        groups = [...groups, created];
+      } else if (groupEditId) {
+        const updated = await updateGroup(groupEditId, body);
+        groups = groups.map(g => g.id === groupEditId ? updated : g);
+      }
+      groupEditId = null;
+    } catch { /* keep form open on error */ }
+  }
+
+  async function removeGroup(id: string) {
+    if (!window.confirm('Delete this group?')) return;
+    try {
+      await deleteGroup(id);
+      groups = groups.filter(g => g.id !== id);
+    } catch { /* ignore */ }
+  }
+
   // ── Data loading ───────────────────────────────────────────────────────────
   async function loadSensors() {
     const ids = [
@@ -253,6 +317,7 @@
     } catch { /* no active recipe */ }
 
     await loadSensors();
+    await loadGroups();
   }
 
   onMount(() => {
@@ -334,6 +399,86 @@
           </section>
         {/if}
       {/each}
+
+      <!-- ── Groups ──────────────────────────────────────────────────────── -->
+      <section class="device-group">
+        <div class="group-header-row">
+          <h2 class="group-header">Groups</h2>
+          {#if groupEditId === null}
+            <button class="btn-add-group" onclick={startNewGroup}>+ New</button>
+          {/if}
+        </div>
+
+        {#if groups.length === 0 && groupEditId === null}
+          <p class="empty-state">No groups defined</p>
+        {/if}
+
+        {#each groups as g (g.id)}
+          {#if groupEditId === g.id}
+            <div class="group-form">
+              <input class="group-name-input" bind:value={groupForm.name} placeholder="Group name" />
+              <select class="group-category-select" bind:value={groupForm.category}>
+                <option value="light">Light</option>
+                <option value="irrigation">Irrigation</option>
+                <option value="climate">Climate</option>
+                <option value="other">Other</option>
+              </select>
+              <div class="group-device-list">
+                {#each devices as d (d.id)}
+                  <label class="group-device-check">
+                    <input
+                      type="checkbox"
+                      checked={groupForm.device_ids.includes(d.id)}
+                      onchange={() => toggleGroupDevice(d.id)}
+                    />
+                    <span>{d.name}</span>
+                  </label>
+                {/each}
+              </div>
+              <div class="group-form-actions">
+                <button class="btn-group-save" onclick={saveGroup}>Save</button>
+                <button class="btn-group-cancel" onclick={cancelGroup}>Cancel</button>
+              </div>
+            </div>
+          {:else}
+            <div class="group-row">
+              <span class="group-row-name">{g.name}</span>
+              <span class="group-category-chip group-category-chip--{g.category}">{g.category}</span>
+              <span class="group-row-count">{g.device_ids.length} device{g.device_ids.length === 1 ? '' : 's'}</span>
+              <button class="btn-group-action" onclick={() => startEditGroup(g)}>Edit</button>
+              <button class="btn-group-action btn-group-delete" onclick={() => removeGroup(g.id)}>Delete</button>
+            </div>
+          {/if}
+        {/each}
+
+        {#if groupEditId === 'new'}
+          <div class="group-form">
+            <input class="group-name-input" bind:value={groupForm.name} placeholder="Group name" />
+            <select class="group-category-select" bind:value={groupForm.category}>
+              <option value="light">Light</option>
+              <option value="irrigation">Irrigation</option>
+              <option value="climate">Climate</option>
+              <option value="other">Other</option>
+            </select>
+            <div class="group-device-list">
+              {#each devices as d (d.id)}
+                <label class="group-device-check">
+                  <input
+                    type="checkbox"
+                    checked={groupForm.device_ids.includes(d.id)}
+                    onchange={() => toggleGroupDevice(d.id)}
+                  />
+                  <span>{d.name}</span>
+                </label>
+              {/each}
+            </div>
+            <div class="group-form-actions">
+              <button class="btn-group-save" onclick={saveGroup}>Save</button>
+              <button class="btn-group-cancel" onclick={cancelGroup}>Cancel</button>
+            </div>
+          </div>
+        {/if}
+      </section>
     </div>
 
     <!-- Sidebar: PolarRing + Alerts -->
@@ -661,5 +806,189 @@
     margin: 0;
     text-align: center;
     padding: var(--s-4) 0;
+  }
+
+  /* ── Groups section ──────────────────────────────────────────────────────── */
+  .group-header-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .btn-add-group {
+    font-family: var(--font-mono);
+    font-size: var(--t-9);
+    color: var(--ink-3);
+    background: none;
+    border: 1px solid var(--line);
+    border-radius: var(--r-1);
+    padding: 2px var(--s-3);
+    cursor: pointer;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    line-height: 1.6;
+    transition: color 0.1s, border-color 0.1s;
+  }
+
+  .btn-add-group:hover {
+    color: var(--ink-1);
+    border-color: var(--ink-3);
+  }
+
+  .group-row {
+    display: flex;
+    align-items: center;
+    gap: var(--s-3);
+    padding: var(--s-2) 0;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .group-row:last-child {
+    border-bottom: none;
+  }
+
+  .group-row-name {
+    font-family: var(--font-mono);
+    font-size: var(--t-12);
+    color: var(--ink-1);
+    flex: 1;
+  }
+
+  .group-category-chip {
+    font-family: var(--font-mono);
+    font-size: var(--t-9);
+    padding: 1px 6px;
+    border-radius: var(--r-pill);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    line-height: 1.6;
+    background: var(--bg-3);
+    color: var(--ink-3);
+    border: 1px solid var(--line);
+  }
+
+  .group-category-chip--light {
+    background: var(--accent-soft);
+    color: var(--accent);
+    border-color: var(--accent-line);
+  }
+
+  .group-row-count {
+    font-family: var(--font-mono);
+    font-size: var(--t-9);
+    color: var(--ink-4);
+    white-space: nowrap;
+  }
+
+  .btn-group-action {
+    font-family: var(--font-mono);
+    font-size: var(--t-9);
+    color: var(--ink-3);
+    background: none;
+    border: 1px solid var(--line);
+    border-radius: var(--r-1);
+    padding: 1px 6px;
+    cursor: pointer;
+    line-height: 1.6;
+    transition: color 0.1s, border-color 0.1s;
+  }
+
+  .btn-group-action:hover {
+    color: var(--ink-1);
+    border-color: var(--ink-3);
+  }
+
+  .btn-group-delete:hover {
+    color: var(--st-crit);
+    border-color: var(--st-crit);
+    background: var(--st-crit-soft);
+  }
+
+  .group-form {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-3);
+    padding: var(--s-3);
+    background: var(--bg-1);
+    border: 1px solid var(--line);
+    border-radius: var(--r-2);
+    margin-top: var(--s-2);
+  }
+
+  .group-name-input {
+    background: var(--bg-0);
+    border: 1px solid var(--line);
+    border-radius: var(--r-1);
+    color: var(--ink-1);
+    font-family: var(--font-mono);
+    font-size: var(--t-12);
+    padding: var(--s-2) var(--s-3);
+    outline: none;
+  }
+
+  .group-name-input:focus {
+    border-color: var(--accent-line);
+  }
+
+  .group-category-select {
+    background: var(--bg-0);
+    border: 1px solid var(--line);
+    border-radius: var(--r-1);
+    color: var(--ink-1);
+    font-family: var(--font-mono);
+    font-size: var(--t-11);
+    padding: var(--s-2) var(--s-3);
+    cursor: pointer;
+    outline: none;
+    align-self: flex-start;
+  }
+
+  .group-category-select:focus {
+    border-color: var(--accent-line);
+  }
+
+  .group-device-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--s-2);
+  }
+
+  .group-device-check {
+    display: flex;
+    align-items: center;
+    gap: var(--s-1);
+    font-family: var(--font-mono);
+    font-size: var(--t-10);
+    color: var(--ink-2);
+    cursor: pointer;
+  }
+
+  .group-form-actions {
+    display: flex;
+    gap: var(--s-2);
+  }
+
+  .btn-group-save {
+    font-family: var(--font-mono);
+    font-size: var(--t-10);
+    background: var(--accent);
+    color: var(--bg-0);
+    border: none;
+    border-radius: var(--r-1);
+    padding: var(--s-1) var(--s-4);
+    cursor: pointer;
+    letter-spacing: 0.06em;
+  }
+
+  .btn-group-cancel {
+    font-family: var(--font-mono);
+    font-size: var(--t-10);
+    background: none;
+    color: var(--ink-3);
+    border: 1px solid var(--line);
+    border-radius: var(--r-1);
+    padding: var(--s-1) var(--s-4);
+    cursor: pointer;
+    letter-spacing: 0.06em;
   }
 </style>

@@ -129,6 +129,17 @@ export interface QueueResponse {
   entries: QueueEntry[];
 }
 
+export interface DeviceGroup {
+  id: string;
+  name: string;
+  category: 'light' | 'irrigation' | 'climate' | 'other';
+  device_ids: string[];
+}
+
+export interface GroupsResponse {
+  groups: DeviceGroup[];
+}
+
 export interface DimmingPoint {
   time: number;
   pct: number;

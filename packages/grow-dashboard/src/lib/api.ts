@@ -16,6 +16,7 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
   if (!res.ok) {
     throw new ApiError(res.status, `${method} ${path}: ${res.status}`);
   }
+  if (res.status === 204) return null as T;
   return res.json();
 }
 
@@ -33,4 +34,31 @@ export function put<T>(path: string, body: unknown): Promise<T> {
 
 export function del<T>(path: string): Promise<T> {
   return request<T>('DELETE', path);
+}
+
+// -- Device Groups --
+
+import type { DeviceGroup, GroupsResponse } from '$lib/types.js';
+
+export function getGroups(): Promise<GroupsResponse> {
+  return get<GroupsResponse>('/api/groups');
+}
+
+export function createGroup(body: {
+  name: string;
+  category: string;
+  device_ids: string[];
+}): Promise<DeviceGroup> {
+  return post<DeviceGroup>('/api/groups', body);
+}
+
+export function updateGroup(
+  id: string,
+  body: { name: string; category: string; device_ids: string[] }
+): Promise<DeviceGroup> {
+  return put<DeviceGroup>(`/api/groups/${id}`, body);
+}
+
+export function deleteGroup(id: string): Promise<void> {
+  return del<void>(`/api/groups/${id}`);
 }
