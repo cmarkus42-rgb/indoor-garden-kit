@@ -22,17 +22,21 @@
 
   // Shared crosshair: all active uPlot instances
   let activeCharts: uPlot[] = [];
+  let cursorSyncing = false;
 
   const sharedCursorHooks: uPlot.Hooks.Arrays = {
     setCursor: [(u: uPlot) => {
+      if (cursorSyncing) return;
       const left = u.cursor.left ?? -1;
       const top = u.cursor.top ?? 0;
       if (left < 0) return;
+      cursorSyncing = true;
       for (const other of activeCharts) {
         if (other !== u) {
           try { other.setCursor({ left, top }); } catch { /* destroyed */ }
         }
       }
+      cursorSyncing = false;
     }],
   };
 
@@ -124,14 +128,19 @@
     for (const id of toLoad) loading.add(id);
     loadingDevices = loading;
 
-    await Promise.all(
+    const results = await Promise.allSettled(
       toLoad.map(async id => {
-        try {
-          const res = await get<ReadingsResponse>(`/api/readings/${id}?limit=100`);
-          readings = new Map(readings).set(id, res.readings);
-        } catch { /* device unavailable */ }
+        const res = await get<ReadingsResponse>(`/api/readings/${id}?limit=100`);
+        return { id, data: res.readings };
       })
     );
+
+    // Atomic update: one state write instead of one per device (prevents race)
+    const nextReadings = new Map(readings);
+    for (const r of results) {
+      if (r.status === 'fulfilled') nextReadings.set(r.value.id, r.value.data);
+    }
+    readings = nextReadings;
 
     const done = new Set(loadingDevices);
     for (const id of toLoad) done.delete(id);
