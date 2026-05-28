@@ -218,7 +218,6 @@
   async function handleToggle(d: Device) {
     const current = switchState(d);
     const next = current == null ? true : !current;
-    if (!window.confirm(`Turn ${d.name} ${next ? 'ON' : 'OFF'}?`)) return;
     try {
       await post(`/api/device/${d.id}/command`, {
         method: 'Switch.Set',
@@ -317,7 +316,16 @@
     sensorData = { ...sensorData, ...batch };
   }
 
-  async function load() {
+  async function loadSchedule() {
+    try {
+      const plan = await get<DayPlanResponse>('/api/schedule/today');
+      if (plan.recipe_name) {
+        recipe = await get<RecipeData>(`/api/recipes/${encodeURIComponent(plan.recipe_name)}`);
+      }
+    } catch { /* no active recipe */ }
+  }
+
+  async function refresh() {
     try {
       const [statusRes, alertsRes] = await Promise.all([
         get<StatusResponse>('/api/status'),
@@ -327,19 +335,13 @@
       alerts = alertsRes.alerts;
     } catch { /* ignore */ }
 
-    try {
-      const plan = await get<DayPlanResponse>('/api/schedule/today');
-      if (plan.recipe_name) {
-        recipe = await get<RecipeData>(`/api/recipes/${encodeURIComponent(plan.recipe_name)}`);
-      }
-    } catch { /* no active recipe */ }
-
     await loadSensors();
     await loadGroups();
   }
 
   onMount(() => {
-    load();
+    refresh();
+    loadSchedule();
     const tick = setInterval(() => { nowMin = getNowMin(); }, 60_000);
     return () => clearInterval(tick);
   });
@@ -347,7 +349,7 @@
   $effect(() => {
     const evt = $sseLatest;
     if (evt?.type === 'device_status' || evt?.type === 'sensor_update') {
-      load();
+      refresh();
     }
   });
 </script>
@@ -395,10 +397,6 @@
                         else if (e.key === 'Escape') cancelEdit();
                       }}
                     />
-                  {:else}
-                    <button class="edit-btn" onclick={() => startEdit(d)} title="Rename device"
-                      >✎</button
-                    >
                   {/if}
                   <DeviceTile
                     label={editingId === d.id ? editValue : d.name}
@@ -410,6 +408,7 @@
                     periodic={d.device_type === 'blu_ht'}
                     toggled={isControllable(d) ? switchState(d) : null}
                     onToggle={isControllable(d) ? () => handleToggle(d) : undefined}
+                    onEdit={editingId !== d.id ? () => startEdit(d) : undefined}
                   />
                 </div>
               {/each}
@@ -641,33 +640,6 @@
   /* ── Tile name editing ──────────────────────────────────────────────────── */
   .tile-wrap {
     position: relative;
-  }
-
-  .edit-btn {
-    position: absolute;
-    top: var(--s-2);
-    right: var(--s-2);
-    z-index: 2;
-    background: none;
-    border: none;
-    cursor: pointer;
-    color: var(--ink-3);
-    font-size: var(--t-11);
-    padding: 2px 6px;
-    border-radius: var(--r-1);
-    line-height: 1;
-    opacity: 0;
-    transition: opacity 0.15s, background 0.15s;
-  }
-
-  .tile-wrap:hover .edit-btn {
-    opacity: 0.8;
-    background: oklch(0% 0 0 / 0.3);
-  }
-
-  .edit-btn:hover {
-    opacity: 1 !important;
-    background: oklch(0% 0 0 / 0.5);
   }
 
   .name-input {

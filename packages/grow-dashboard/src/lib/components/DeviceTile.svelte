@@ -14,9 +14,10 @@
     periodic?: boolean;
     toggled?: boolean | null;
     onToggle?: () => void;
+    onEdit?: () => void;
   }
 
-  const { label, sub, metric, unit, status, sparklinePoints, lastSeen, periodic, toggled, onToggle }: Props = $props();
+  const { label, sub, metric, unit, status, sparklinePoints, lastSeen, periodic, toggled, onToggle, onEdit }: Props = $props();
 
   function formatTimeAgo(isoDate: string): string {
     const diffMin = Math.floor((Date.now() - new Date(isoDate).getTime()) / 60_000);
@@ -58,6 +59,10 @@
 <div class="tile" class:offline={status === 'offline'} class:stale={isStale} data-status={status}>
   {#if status === 'offline'}
     <div class="offline-overlay" aria-hidden="true"></div>
+  {/if}
+
+  {#if onEdit}
+    <button class="edit-btn" onclick={onEdit} title="Rename device">✎</button>
   {/if}
 
   <div class="tile-header">
@@ -117,6 +122,28 @@
     border-radius: var(--r-3);
     padding: var(--s-3) var(--s-4);
     overflow: hidden;
+  }
+
+  .edit-btn {
+    position: absolute;
+    top: var(--s-2);
+    right: var(--s-2);
+    z-index: 2;
+    background: oklch(0% 0 0 / 0.4);
+    border: none;
+    cursor: pointer;
+    color: var(--ink-2);
+    font-size: var(--t-11);
+    padding: 2px 6px;
+    border-radius: var(--r-1);
+    line-height: 1;
+    opacity: 0.6;
+    transition: opacity 0.15s, background 0.15s;
+  }
+
+  .edit-btn:hover {
+    opacity: 1;
+    background: oklch(0% 0 0 / 0.6);
   }
 
   .tile.offline {
