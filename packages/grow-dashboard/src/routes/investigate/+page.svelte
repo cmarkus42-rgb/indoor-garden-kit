@@ -346,14 +346,14 @@
         {#if correlationRows.columns.length >= 2}
           <section class="corr-section">
             <header class="section-header">
-              <span class="section-label">Korrelation</span>
+              <span class="section-label">Correlation</span>
               <span class="section-unit">30s-Buckets</span>
             </header>
             <div class="corr-table-wrap">
               <table class="corr-table">
                 <thead>
                   <tr>
-                    <th>Zeit</th>
+                    <th>Time</th>
                     {#each correlationRows.columns as col}
                       <th>{col}</th>
                     {/each}
@@ -362,7 +362,7 @@
                 <tbody>
                   {#each correlationRows.rows as row}
                     <tr>
-                      <td class="ts-cell">{new Date(row.timestamp).toLocaleTimeString('de', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</td>
+                      <td class="ts-cell">{new Date(row.timestamp).toLocaleTimeString('en', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</td>
                       {#each row.values as v}
                         <td class:null-cell={v === null}>{v !== null ? v : '—'}</td>
                       {/each}
