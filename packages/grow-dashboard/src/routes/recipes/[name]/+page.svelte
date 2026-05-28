@@ -1,6 +1,6 @@
 <script lang="ts">
-  import { get, put } from '$lib/api.js';
-  import type { RecipeData, ChannelRule } from '$lib/types.js';
+  import { get, put, getGroups } from '$lib/api.js';
+  import type { RecipeData, ChannelRule, DeviceGroup } from '$lib/types.js';
   import PolarRing from '$lib/components/PolarRing.svelte';
   import ValueCard from '$lib/components/ValueCard.svelte';
   import { page } from '$app/stores';
@@ -13,6 +13,9 @@
   let saving = $state(false);
   let error = $state('');
   let copied = $state(false);
+  let lightGroups = $state<DeviceGroup[]>([]);
+  let channelPickerOpen = $state(false);
+  let channelPickerValue = $state('');
 
   function getNowMin(): number {
     const d = new Date();
@@ -30,6 +33,11 @@
     } catch {
       error = 'Recipe not found';
     }
+    try {
+      const groupsRes = await getGroups();
+      lightGroups = groupsRes.groups.filter(g => g.category === 'light');
+      if (lightGroups.length > 0) channelPickerValue = lightGroups[0].name;
+    } catch { /* no groups yet */ }
   }
 
   onMount(() => {
@@ -54,12 +62,33 @@
     saving = false;
   }
 
-  function addChannel() {
+  function openChannelPicker() {
     if (!recipe) return;
-    const ch = prompt('Channel name:');
-    if (!ch) return;
-    recipe.channels[ch] = { rule: 'before_on', offset_min: 15, duration_min: 30 };
-    recipe = { ...recipe };
+    if (lightGroups.length === 0) {
+      const ch = prompt('Channel name:');
+      if (!ch) return;
+      if (!(ch in recipe.channels)) {
+        recipe.channels[ch] = { rule: 'before_on', offset_min: 15, duration_min: 30 };
+        recipe = { ...recipe };
+      }
+      return;
+    }
+    channelPickerOpen = true;
+    channelPickerValue = lightGroups[0].name;
+  }
+
+  function confirmChannelPick() {
+    if (!recipe) return;
+    let name = channelPickerValue;
+    if (name === '__custom__') {
+      name = prompt('Channel name:') ?? '';
+    }
+    channelPickerOpen = false;
+    if (!name) return;
+    if (!(name in recipe.channels)) {
+      recipe.channels[name] = { rule: 'before_on', offset_min: 15, duration_min: 30 };
+      recipe = { ...recipe };
+    }
   }
 
   function removeChannel(ch: string) {
@@ -207,7 +236,20 @@
           <section class="form-section">
             <div class="section-header">
               <span class="section-label">CHANNELS</span>
-              <button class="btn-ghost-sm" onclick={addChannel}>+ Add</button>
+              {#if channelPickerOpen}
+                <div class="channel-picker">
+                  <select class="input-select-sm" bind:value={channelPickerValue}>
+                    {#each lightGroups as g (g.id)}
+                      <option value={g.name}>{g.name}</option>
+                    {/each}
+                    <option value="__custom__">Custom...</option>
+                  </select>
+                  <button class="btn-ghost-sm" onclick={confirmChannelPick}>Add</button>
+                  <button class="btn-ghost-sm" onclick={() => (channelPickerOpen = false)}>Cancel</button>
+                </div>
+              {:else}
+                <button class="btn-ghost-sm" onclick={openChannelPicker}>+ Add</button>
+              {/if}
             </div>
 
             {#if Object.keys(recipe.channels).length === 0}
@@ -695,5 +737,12 @@
     color: var(--ink-4);
     padding: var(--s-2) 0;
     margin: 0;
+  }
+
+  /* ── Channel picker ── */
+  .channel-picker {
+    display: flex;
+    align-items: center;
+    gap: var(--s-2);
   }
 </style>
