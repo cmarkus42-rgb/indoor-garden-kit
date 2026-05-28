@@ -43,7 +43,7 @@
   const moreLinks = [
     { href: '/energy',      label: 'Energie'      },
     { href: '/log',         label: 'Protokoll'    },
-    { href: '/recipes',     label: 'Rezepte'      },
+    { href: '/recipes',     label: 'Recipes'      },
     { href: '/settings',    label: 'Einstellungen'},
     { href: '/investigate', label: 'Investigate'  },
   ];
