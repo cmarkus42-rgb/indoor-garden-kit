@@ -109,7 +109,7 @@
   </main>
 
   <!-- Mobile bottom tab bar -->
-  <nav class="mobile-tabs" aria-label="Hauptnavigation">
+  <nav class="mobile-tabs" aria-label="Main navigation">
     {#each primaryLinks as link}
       <a
         href={link.href}
@@ -129,7 +129,7 @@
       aria-expanded={moreOpen}
     >
       <span class="tab-icon">≡</span>
-      <span class="tab-label">Mehr</span>
+      <span class="tab-label">More</span>
     </button>
 
     {#if moreOpen}

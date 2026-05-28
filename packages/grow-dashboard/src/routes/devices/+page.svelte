@@ -64,7 +64,7 @@
     let offMins = offH * 60 + offM;
     if (offMins <= onMins) offMins += 1440;
     const nm = nowMin < onMins ? nowMin + 1440 : nowMin;
-    return nm >= onMins && nm < offMins ? 'AN' : 'AUS';
+    return nm >= onMins && nm < offMins ? 'ON' : 'OFF';
   });
 
   let photoLabel = $derived(recipe ? `${recipe.photoperiod.on}–${recipe.photoperiod.off}` : '');
@@ -215,7 +215,7 @@
     <KPI label="Soil moisture" value={avgMoisture ?? '—'} unit="%" />
     <KPI label="Light" value={photoStatus} unit={photoLabel} />
     <KPI label="Energy" value={totalWatts} unit="W" />
-    <KPI label="Alerts" value={openAlerts} unit="offen" />
+    <KPI label="Alerts" value={openAlerts} unit="open" />
   </div>
 
   <!-- ── Main 2-column layout ───────────────────────────────────────────── -->
@@ -267,7 +267,7 @@
         </div>
 
         {#if alerts.length === 0}
-          <p class="empty-state">Keine Alerts</p>
+          <p class="empty-state">No alerts</p>
         {:else}
           <ul class="alert-list">
             {#each alerts as a (a.id)}
