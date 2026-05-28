@@ -13,6 +13,7 @@
   let allDevices = $state<Device[]>([]);
   let readings  = $state<Map<string, SensorReading[]>>(new Map());
   let loading   = $state(true);
+  let reloadTimer: ReturnType<typeof setTimeout> | null = null;
 
   // ── Device slices ───────────────────────────────────────────────────────
   let climateDevices = $derived(
@@ -102,7 +103,8 @@
     const ys: (number | null)[][] = [];
     let i = 0;
     for (const [id, m] of devMaps) {
-      const device = devices.find(d => d.id === id)!;
+      const device = devices.find(d => d.id === id);
+      if (!device) continue;
       series.push({
         label: device.name,
         stroke: STROKES[i % STROKES.length],
@@ -163,7 +165,8 @@
   $effect(() => {
     const evt = $sseLatest;
     if (evt?.type === 'sensor_update' || evt?.type === 'device_status') {
-      load();
+      if (reloadTimer !== null) clearTimeout(reloadTimer);
+      reloadTimer = setTimeout(() => { load(); }, 3000);
     }
   });
 </script>
