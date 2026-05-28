@@ -1,4 +1,4 @@
-const CACHE = 'grow-shell-v1';
+const CACHE = 'grow-shell-v2';
 
 self.addEventListener('install', (e) => {
   e.waitUntil(
