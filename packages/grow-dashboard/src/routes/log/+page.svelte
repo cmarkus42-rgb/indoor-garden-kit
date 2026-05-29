@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { get } from '$lib/api.js';
+  import { get, post } from '$lib/api.js';
   import type { AlertsResponse, Alert } from '$lib/types.js';
   import StatusDot from '$lib/components/StatusDot.svelte';
   import Chip from '$lib/components/Chip.svelte';
@@ -8,10 +8,22 @@
   let alerts = $state<Alert[]>([]);
   let tierFilter = $state<string>('all');
   let sourceFilter = $state('');
+  let showResolved = $state(false);
 
   async function load() {
     const res = await get<AlertsResponse>('/api/alerts');
     alerts = res.alerts;
+  }
+
+  function dismiss(id: string) {
+    alerts = alerts.map(a => a.id === id ? { ...a, resolved_at: new Date().toISOString() } : a);
+    post(`/api/alerts/${id}/dismiss`, {});
+  }
+
+  function dismissAll() {
+    const now = new Date().toISOString();
+    alerts = alerts.map(a => a.resolved_at ? a : { ...a, resolved_at: now });
+    post('/api/alerts/dismiss-all', {});
   }
 
   onMount(() => { load(); });
@@ -26,8 +38,11 @@
   const tierToVariant = (tier: Alert['tier']) =>
     tier === 'info' ? 'info' : tier === 'warning' ? 'warn' : 'crit';
 
+  const openCount = $derived(alerts.filter(a => !a.resolved_at).length);
+
   const filtered = $derived(
     alerts.filter(a => {
+      if (!showResolved && a.resolved_at) return false;
       if (tierFilter !== 'all' && a.tier !== tierFilter) return false;
       if (sourceFilter && !a.source.toLowerCase().includes(sourceFilter.toLowerCase())) return false;
       return true;
@@ -38,7 +53,12 @@
 <div class="log-page">
   <div class="page-header">
     <div class="section-h">Event Log</div>
-    <span class="count mono">{filtered.length}<span class="muted">/{alerts.length}</span></span>
+    <div class="header-right">
+      <span class="count mono">{filtered.length}<span class="muted">/{alerts.length}</span></span>
+      {#if openCount > 0}
+        <button class="clear-all-btn mono" onclick={dismissAll}>Clear All</button>
+      {/if}
+    </div>
   </div>
 
   <div class="filter-bar">
@@ -59,6 +79,14 @@
         </button>
       {/each}
     </div>
+
+    <button
+      class="tier-btn"
+      class:active={showResolved}
+      onclick={() => { showResolved = !showResolved; }}
+    >
+      {showResolved ? 'All' : 'Open'}
+    </button>
 
     <div class="source-input-wrap">
       <span class="source-icon mono">//</span>
@@ -88,6 +116,7 @@
             <th class="col-src">Source</th>
             <th class="col-msg">Message</th>
             <th class="col-res">Status</th>
+            <th class="col-act"></th>
           </tr>
         </thead>
         <tbody>
@@ -106,6 +135,11 @@
                   <Chip variant="ok">Resolved</Chip>
                 {:else}
                   <Chip variant="crit">Open</Chip>
+                {/if}
+              </td>
+              <td class="col-act">
+                {#if !a.resolved_at}
+                  <button class="dismiss-btn mono" onclick={() => dismiss(a.id)}>Dismiss</button>
                 {/if}
               </td>
             </tr>
@@ -135,10 +169,35 @@
     border-bottom: none;
   }
 
+  .header-right {
+    display: flex;
+    align-items: center;
+    gap: var(--s-3);
+  }
+
   .count {
     font-size: var(--t-11);
     color: var(--ink-1);
     letter-spacing: 0.06em;
+  }
+
+  .clear-all-btn {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 10px;
+    border-radius: var(--r-pill);
+    border: 1px solid var(--line-strong);
+    background: var(--bg-2);
+    color: var(--ink-3);
+    font-size: var(--t-9);
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    cursor: pointer;
+    transition: background 0.12s, color 0.12s;
+  }
+  .clear-all-btn:hover {
+    background: var(--bg-3);
+    color: var(--ink-1);
   }
 
   /* Filter bar */
@@ -334,6 +393,32 @@
 
   .col-res {
     white-space: nowrap;
+  }
+
+  .col-act {
+    white-space: nowrap;
+    text-align: right;
+    width: 1px;
+  }
+
+  .dismiss-btn {
+    display: inline-flex;
+    align-items: center;
+    padding: 3px 8px;
+    border-radius: var(--r-pill);
+    border: 1px solid var(--line-strong);
+    background: transparent;
+    color: var(--ink-4);
+    font-size: var(--t-9);
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    cursor: pointer;
+    transition: background 0.12s, color 0.12s, border-color 0.12s;
+  }
+  .dismiss-btn:hover {
+    background: var(--bg-3);
+    color: var(--ink-1);
+    border-color: var(--ink-3);
   }
 
   .empty {

@@ -16,9 +16,11 @@
     onToggle?: () => void;
     onEdit?: () => void;
     groupColor?: string;
+    dimmerValue?: number;
+    onDimmer?: (pct: number) => void;
   }
 
-  const { label, sub, metric, unit, status, sparklinePoints, lastSeen, periodic, toggled, onToggle, onEdit, groupColor }: Props = $props();
+  const { label, sub, metric, unit, status, sparklinePoints, lastSeen, periodic, toggled, onToggle, onEdit, groupColor, dimmerValue, onDimmer }: Props = $props();
 
   function formatTimeAgo(isoDate: string): string {
     const diffMin = Math.floor((Date.now() - new Date(isoDate).getTime()) / 60_000);
@@ -110,6 +112,21 @@
       </button>
     {/if}
   </div>
+
+  {#if onDimmer != null && dimmerValue != null}
+    <div class="dimmer-row">
+      <input
+        type="range"
+        class="dimmer-slider"
+        min="0"
+        max="100"
+        value={dimmerValue}
+        oninput={(e) => onDimmer(Number(e.currentTarget.value))}
+        aria-label="Brightness"
+      />
+      <span class="dimmer-label">{dimmerValue}%</span>
+    </div>
+  {/if}
 </div>
 
 <style>
@@ -284,5 +301,52 @@
 
   .toggle.on .toggle-thumb {
     transform: translateX(14px);
+  }
+
+  /* ── Dimmer slider ───────────────────────────────────────────────────── */
+  .dimmer-row {
+    display: flex;
+    align-items: center;
+    gap: var(--s-2);
+    padding-top: var(--s-1);
+  }
+
+  .dimmer-slider {
+    flex: 1;
+    -webkit-appearance: none;
+    appearance: none;
+    height: 4px;
+    background: var(--line);
+    border-radius: var(--r-pill);
+    outline: none;
+    cursor: pointer;
+  }
+
+  .dimmer-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: var(--accent);
+    border: 2px solid var(--bg-0);
+    cursor: pointer;
+  }
+
+  .dimmer-slider::-moz-range-thumb {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: var(--accent);
+    border: 2px solid var(--bg-0);
+    cursor: pointer;
+  }
+
+  .dimmer-label {
+    font-family: var(--font-mono);
+    font-size: var(--t-9);
+    color: var(--ink-3);
+    min-width: 32px;
+    text-align: right;
   }
 </style>

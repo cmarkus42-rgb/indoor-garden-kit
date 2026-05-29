@@ -15,6 +15,7 @@
   import KPI from '$lib/components/KPI.svelte';
   import DeviceTile from '$lib/components/DeviceTile.svelte';
   import PolarRing from '$lib/components/PolarRing.svelte';
+  import StatusDot from '$lib/components/StatusDot.svelte';
 
 
   // ── State ──────────────────────────────────────────────────────────────────
@@ -287,6 +288,67 @@
     } catch { /* ignore */ }
   }
 
+  // ── Group switch state + toggle ──────────────────────────────────────────
+  function groupSwitchState(g: DeviceGroup): 'all-on' | 'all-off' | 'mixed' {
+    const controllable = g.device_ids
+      .map(id => devices.find(d => d.id === id))
+      .filter((d): d is Device => d != null && isControllable(d));
+    if (!controllable.length) return 'all-off';
+    const onCount = controllable.filter(d => switchState(d)).length;
+    if (onCount === controllable.length) return 'all-on';
+    if (onCount === 0) return 'all-off';
+    return 'mixed';
+  }
+
+  function groupOnCount(g: DeviceGroup): { on: number; total: number } {
+    const controllable = g.device_ids
+      .map(id => devices.find(d => d.id === id))
+      .filter((d): d is Device => d != null && isControllable(d));
+    const on = controllable.filter(d => switchState(d)).length;
+    return { on, total: controllable.length };
+  }
+
+  async function handleGroupToggle(g: DeviceGroup) {
+    const state = groupSwitchState(g);
+    const targetOn = state !== 'all-on';
+    const controllable = g.device_ids
+      .map(id => devices.find(d => d.id === id))
+      .filter((d): d is Device => d != null && isControllable(d));
+    if (!controllable.length) return;
+    if (!window.confirm(`Turn ${targetOn ? 'on' : 'off'} all ${controllable.length} devices in ${g.name}?`)) return;
+    await Promise.allSettled(
+      controllable.map(async d => {
+        try {
+          await post(`/api/device/${d.id}/command`, {
+            method: 'Switch.Set',
+            params: { id: 0, on: targetOn }
+          });
+          sensorData = { ...sensorData, [d.id]: { ...(sensorData[d.id] ?? {}), output: targetOn ? 1 : 0 } };
+        } catch { /* ignore individual failures */ }
+      })
+    );
+  }
+
+  // ── Dimmer control ──────────────────────────────────────────────────────
+  let dimmerTimers = new Map<string, ReturnType<typeof setTimeout>>();
+
+  function handleDimmer(d: Device, pct: number) {
+    // Optimistic local update
+    sensorData = { ...sensorData, [d.id]: { ...(sensorData[d.id] ?? {}), brightness: pct } };
+    // Debounce API call
+    const existing = dimmerTimers.get(d.id);
+    if (existing) clearTimeout(existing);
+    dimmerTimers.set(d.id, setTimeout(async () => {
+      dimmerTimers.delete(d.id);
+      try {
+        await post(`/api/device/${d.id}/command`, {
+          method: 'Light.Set',
+          params: { id: 0, brightness: pct }
+        });
+      } catch { /* ignore */ }
+    }, 300));
+  }
+
   // ── Data loading ───────────────────────────────────────────────────────────
   async function loadSensors() {
     if (!devices.length) return;
@@ -388,6 +450,7 @@
                         if (e.key === 'Enter') saveEdit(d);
                         else if (e.key === 'Escape') cancelEdit();
                       }}
+                      onblur={() => saveEdit(d)}
                     />
                   {/if}
                   <DeviceTile
@@ -402,6 +465,8 @@
                     onToggle={isControllable(d) ? () => handleToggle(d) : undefined}
                     onEdit={editingId !== d.id ? () => startEdit(d) : undefined}
                     groupColor={deviceGroupColor.get(d.id)}
+                    dimmerValue={d.device_type === 'shelly_dimmer' ? (sensorData[d.id]?.brightness ?? 0) : undefined}
+                    onDimmer={d.device_type === 'shelly_dimmer' ? (pct: number) => handleDimmer(d, pct) : undefined}
                   />
                 </div>
               {/each}
@@ -474,12 +539,32 @@
               </div>
             </div>
           {:else}
-            <div class="group-row">
-              <span class="group-row-dot" style="background: {g.color}"></span>
-              <span class="group-row-name">{g.name}</span>
-              <span class="group-row-count">{g.device_ids.length}</span>
-              <button class="btn-group-action" onclick={() => startEditGroup(g)}>Edit</button>
-              <button class="btn-group-action btn-group-delete" onclick={() => removeGroup(g.id)}>✕</button>
+            <div class="group-row-wrap">
+              <div class="group-row">
+                <span class="group-row-dot" style="background: {g.color}"></span>
+                <span class="group-row-name">{g.name}</span>
+                {@const gs = groupSwitchState(g)}
+                <StatusDot variant={gs === 'all-on' ? 'ok' : gs === 'all-off' ? 'crit' : 'warn'} />
+                <button
+                  class="group-toggle"
+                  class:on={gs === 'all-on'}
+                  class:mixed={gs === 'mixed'}
+                  onclick={() => handleGroupToggle(g)}
+                  aria-label={gs === 'all-on' ? 'Turn off group' : 'Turn on group'}
+                >
+                  <span class="group-toggle-thumb"></span>
+                </button>
+                <button class="btn-group-action" onclick={() => startEditGroup(g)}>Edit</button>
+                <button class="btn-group-action btn-group-delete" onclick={() => removeGroup(g.id)}>✕</button>
+              </div>
+              {@const counts = groupOnCount(g)}
+              <div class="group-row-status" class:st-ok={gs === 'all-on'} class:st-warn={gs === 'mixed'} class:st-crit={gs === 'all-off'}>
+                {#if counts.total > 0}
+                  {counts.on}/{counts.total} on
+                {:else}
+                  no controllable devices
+                {/if}
+              </div>
             </div>
           {/if}
         {/each}
@@ -894,5 +979,74 @@
     height: 10px;
     border-radius: 50%;
     flex-shrink: 0;
+  }
+
+  /* ── Group row wrap (row + status line) ──────────────────────────────── */
+  .group-row-wrap {
+    display: flex;
+    flex-direction: column;
+    border-bottom: 1px solid var(--line);
+    padding-bottom: var(--s-2);
+  }
+
+  .group-row-wrap:last-child {
+    border-bottom: none;
+  }
+
+  .group-row-wrap .group-row {
+    border-bottom: none;
+  }
+
+  .group-row-status {
+    font-family: var(--font-mono);
+    font-size: var(--t-9);
+    letter-spacing: 0.04em;
+    padding-left: calc(10px + var(--s-3));
+    line-height: 1.4;
+  }
+
+  .group-row-status.st-ok { color: var(--st-ok); }
+  .group-row-status.st-warn { color: var(--st-warn); }
+  .group-row-status.st-crit { color: var(--st-crit); }
+
+  /* ── Group toggle switch ─────────────────────────────────────────────── */
+  .group-toggle {
+    flex-shrink: 0;
+    position: relative;
+    width: 28px;
+    height: 16px;
+    border-radius: var(--r-pill);
+    background: var(--line);
+    border: none;
+    cursor: pointer;
+    padding: 0;
+    transition: background 0.15s;
+  }
+
+  .group-toggle.on {
+    background: var(--accent);
+  }
+
+  .group-toggle.mixed {
+    background: var(--st-warn);
+  }
+
+  .group-toggle-thumb {
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: var(--bg-0);
+    transition: transform 0.15s;
+  }
+
+  .group-toggle.on .group-toggle-thumb {
+    transform: translateX(12px);
+  }
+
+  .group-toggle.mixed .group-toggle-thumb {
+    transform: translateX(6px);
   }
 </style>

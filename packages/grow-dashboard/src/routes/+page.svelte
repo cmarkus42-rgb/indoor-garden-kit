@@ -13,6 +13,88 @@
   import DeviceTile from '$lib/components/DeviceTile.svelte';
   import type uPlot from 'uplot';
 
+  // ── Section config ─────────────────────────────────────────────────────────
+  const SECTION_KEYS = ["climate", "soil", "light"] as const;
+  type SectionKey = typeof SECTION_KEYS[number];
+  interface OverviewConfig { order: SectionKey[]; visible: Record<SectionKey, boolean>; }
+  const DEFAULT_CONFIG: OverviewConfig = {
+    order: ["climate", "soil", "light"],
+    visible: { climate: true, soil: true, light: true }
+  };
+  const STORAGE_KEY = "grow_overview_config";
+
+  const SECTION_LABELS: Record<SectionKey, string> = {
+    climate: "Climate",
+    soil: "Soil Moisture",
+    light: "Light"
+  };
+
+  function loadConfig(): OverviewConfig {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw) as OverviewConfig;
+        if (Array.isArray(parsed.order) && parsed.visible) return parsed;
+      }
+    } catch {}
+    return {
+      order: [...DEFAULT_CONFIG.order],
+      visible: { ...DEFAULT_CONFIG.visible }
+    };
+  }
+
+  function saveConfig() {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(config));
+  }
+
+  // ── Edit mode ──────────────────────────────────────────────────────────────
+  let editMode = $state(false);
+  let config = $state<OverviewConfig>(loadConfig());
+  let draggedKey = $state<SectionKey | null>(null);
+  let draggedOver = $state<SectionKey | null>(null);
+
+  function toggleEdit() {
+    if (editMode) saveConfig();
+    editMode = !editMode;
+  }
+
+  function onDragStart(e: DragEvent, key: SectionKey) {
+    draggedKey = key;
+    e.dataTransfer!.setData("text/plain", key);
+    e.dataTransfer!.effectAllowed = "move";
+  }
+
+  function onDragOver(e: DragEvent, key: SectionKey) {
+    e.preventDefault();
+    draggedOver = key;
+  }
+
+  function onDrop(e: DragEvent, targetKey: SectionKey) {
+    e.preventDefault();
+    if (!draggedKey || draggedKey === targetKey) {
+      draggedKey = null; draggedOver = null; return;
+    }
+    const srcIdx = config.order.indexOf(draggedKey);
+    const tgtIdx = config.order.indexOf(targetKey);
+    const newOrder = [...config.order];
+    newOrder.splice(srcIdx, 1);
+    newOrder.splice(tgtIdx, 0, draggedKey);
+    config.order = newOrder;
+    saveConfig();
+    draggedKey = null;
+    draggedOver = null;
+  }
+
+  function onDragEnd() {
+    draggedKey = null;
+    draggedOver = null;
+  }
+
+  function toggleVisibility(key: SectionKey) {
+    config.visible = { ...config.visible, [key]: !config.visible[key] };
+    saveConfig();
+  }
+
   // ── State ────────────────────────────────────────────────────────────────────
   let climateDevices = $state<Device[]>([]);
   let soilDevices = $state<Device[]>([]);
@@ -333,6 +415,15 @@
 <div class="page">
 
   <!-- ══════════════════════════════════════════════════════════════════════════
+       EDIT BUTTON
+       ══════════════════════════════════════════════════════════════════════════ -->
+  <div class="page-topbar">
+    <button class="btn-ghost" onclick={toggleEdit}>
+      {editMode ? "Done" : "Edit"}
+    </button>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════════════════════
        HERO SECTION: PolarRing + KPI Cards
        ══════════════════════════════════════════════════════════════════════════ -->
   <section class="hero">
@@ -359,126 +450,163 @@
     </div>
   {:else}
 
-    <!-- ════════════════════════════════════════════════════════════════════════
-         CLIMATE SECTION
-         ════════════════════════════════════════════════════════════════════════ -->
-    <section class="section">
-      <header class="section-header">
-        <span class="section-label">Climate</span>
-        <span class="section-hint">
-          <span class="band-swatch ok"></span> Veg 0.8\u20131.2
-          <span class="band-swatch warn"></span> Flower 1.2\u20131.6
-        </span>
-      </header>
-
-      {#if climateDevices.length}
-        <TimeChart
-          data={climateChart.data}
-          series={climateChart.series}
-          height={160}
-          hooks={vpdHooks}
-        />
-        <div class="device-row">
-          {#each climateDevices as d}
-            {@const t = latestVal(climateReadings, [d], 'temperature')}
-            {@const h = latestVal(climateReadings, [d], 'humidity')}
-            <DeviceTile
-              label={d.name}
-              sub={`${fmt(h, 0)}% RH`}
-              metric={fmt(t)}
-              unit="\u00b0C"
-              status={d.status === 'online' ? 'ok' : 'crit'}
-              periodic={true}
-              lastSeen={d.last_seen}
-            />
-          {/each}
-        </div>
-      {:else}
-        <div class="empty">No climate sensors found</div>
-      {/if}
-    </section>
-
-    <!-- ════════════════════════════════════════════════════════════════════════
-         SOIL MOISTURE SECTION
-         ════════════════════════════════════════════════════════════════════════ -->
-    <section class="section">
-      <header class="section-header">
-        <span class="section-label">Soil Moisture</span>
-        <span class="section-hint">
-          <span class="th-swatch warn"></span> 30% dry
-          <span class="th-swatch ok"></span> 60% field cap.
-        </span>
-      </header>
-
-      {#if soilDevices.length}
-        <TimeChart
-          data={moistureChart.data}
-          series={moistureChart.series}
-          height={160}
-          hooks={thresholdHooks}
-        />
-        <div class="soil-grid">
-          {#each soilDevices as d, i (d.id)}
-            {@const moisture = soilLatest(d.id)}
-            <div class="soil-cell">
-              <DeviceTile
-                label={d.name}
-                sub={d.zone}
-                metric={fmt(moisture, 0)}
-                unit="%"
-                status={moistureStatus(moisture)}
-                periodic={true}
-                lastSeen={d.last_seen}
-              />
-              <div class="moisture-bar-wrap">
-                <div
-                  class="moisture-bar"
-                  style="width: {moisture !== null ? Math.min(100, moisture) : 0}%; background: {STROKES[i % STROKES.length]}"
-                ></div>
-              </div>
+    {#each config.order as key (key)}
+      {#if editMode || config.visible[key]}
+        <div
+          class="section-wrapper"
+          class:edit-active={editMode}
+          class:drag-over={editMode && draggedOver === key && draggedKey !== key}
+          class:dimmed={editMode && !config.visible[key]}
+          draggable={editMode}
+          ondragstart={(e) => onDragStart(e, key)}
+          ondragover={(e) => onDragOver(e, key)}
+          ondrop={(e) => onDrop(e, key)}
+          ondragend={onDragEnd}
+        >
+          {#if editMode}
+            <div class="edit-bar">
+              <span class="drag-handle" title="Drag to reorder">⠿⠿</span>
+              <span class="edit-label">{SECTION_LABELS[key]}</span>
+              <label class="vis-toggle" title={config.visible[key] ? "Hide section" : "Show section"}>
+                <input
+                  type="checkbox"
+                  checked={config.visible[key]}
+                  onchange={() => toggleVisibility(key)}
+                />
+                <span class="track"></span>
+                <span class="thumb"></span>
+              </label>
             </div>
-          {/each}
-        </div>
-      {:else}
-        <div class="empty">No soil sensors found</div>
-      {/if}
-    </section>
+          {/if}
 
-    <!-- ════════════════════════════════════════════════════════════════════════
-         LIGHT SECTION (compact)
-         ════════════════════════════════════════════════════════════════════════ -->
-    <section class="section">
-      <header class="section-header">
-        <span class="section-label">Light</span>
-      </header>
+          {#if key === "climate"}
+            <!-- ════════════════════════════════════════════════════════════════
+                 CLIMATE SECTION
+                 ════════════════════════════════════════════════════════════════ -->
+            <section class="section">
+              <header class="section-header">
+                <span class="section-label">Climate</span>
+                <span class="section-hint">
+                  <span class="band-swatch ok"></span> Veg 0.8\u20131.2
+                  <span class="band-swatch warn"></span> Flower 1.2\u20131.6
+                </span>
+              </header>
 
-      {#if dayPlan && activeRecipe}
-        <div class="light-compact">
-          <div class="light-info">
-            <span class="recipe-name">{dayPlan.recipe_name}</span>
-            <div class="photoperiod">
-              <span class="mono-dim">{minuteToHHMM(dayPlan.main_on)}</span>
-              <span class="period-arrow">\u2192</span>
-              <span class="mono-dim">{minuteToHHMM(dayPlan.main_off)}</span>
-            </div>
-            {#if dayPlan.transition_progress !== null}
-              <div class="transition-row">
-                <span class="mono-label-sm">TRANSITION</span>
-                <div class="transition-bar">
-                  <div class="transition-fill" style="width: {Math.round(dayPlan.transition_progress * 100)}%"></div>
+              {#if climateDevices.length}
+                <TimeChart
+                  data={climateChart.data}
+                  series={climateChart.series}
+                  height={160}
+                  hooks={vpdHooks}
+                />
+                <div class="device-row">
+                  {#each climateDevices as d}
+                    {@const t = latestVal(climateReadings, [d], 'temperature')}
+                    {@const h = latestVal(climateReadings, [d], 'humidity')}
+                    <DeviceTile
+                      label={d.name}
+                      sub={`${fmt(h, 0)}% RH`}
+                      metric={fmt(t)}
+                      unit="\u00b0C"
+                      status={d.status === 'online' ? 'ok' : 'crit'}
+                      periodic={true}
+                      lastSeen={d.last_seen}
+                    />
+                  {/each}
                 </div>
-                <span class="mono-dim-sm">{Math.round(dayPlan.transition_progress * 100)}%</span>
-              </div>
-            {/if}
-          </div>
-          <div class="light-ring">
-            <PolarRing recipe={activeRecipe} {nowMin} size="sm" />
-          </div>
+              {:else}
+                <div class="empty">No climate sensors found</div>
+              {/if}
+            </section>
+
+          {:else if key === "soil"}
+            <!-- ════════════════════════════════════════════════════════════════
+                 SOIL MOISTURE SECTION
+                 ════════════════════════════════════════════════════════════════ -->
+            <section class="section">
+              <header class="section-header">
+                <span class="section-label">Soil Moisture</span>
+                <span class="section-hint">
+                  <span class="th-swatch warn"></span> 30% dry
+                  <span class="th-swatch ok"></span> 60% field cap.
+                </span>
+              </header>
+
+              {#if soilDevices.length}
+                <TimeChart
+                  data={moistureChart.data}
+                  series={moistureChart.series}
+                  height={160}
+                  hooks={thresholdHooks}
+                />
+                <div class="soil-grid">
+                  {#each soilDevices as d, i (d.id)}
+                    {@const moisture = soilLatest(d.id)}
+                    <div class="soil-cell">
+                      <DeviceTile
+                        label={d.name}
+                        sub={d.zone}
+                        metric={fmt(moisture, 0)}
+                        unit="%"
+                        status={moistureStatus(moisture)}
+                        periodic={true}
+                        lastSeen={d.last_seen}
+                      />
+                      <div class="moisture-bar-wrap">
+                        <div
+                          class="moisture-bar"
+                          style="width: {moisture !== null ? Math.min(100, moisture) : 0}%; background: {STROKES[i % STROKES.length]}"
+                        ></div>
+                      </div>
+                    </div>
+                  {/each}
+                </div>
+              {:else}
+                <div class="empty">No soil sensors found</div>
+              {/if}
+            </section>
+
+          {:else if key === "light"}
+            <!-- ════════════════════════════════════════════════════════════════
+                 LIGHT SECTION (compact)
+                 ════════════════════════════════════════════════════════════════ -->
+            <section class="section">
+              <header class="section-header">
+                <span class="section-label">Light</span>
+              </header>
+
+              {#if dayPlan && activeRecipe}
+                <div class="light-compact">
+                  <div class="light-info">
+                    <span class="recipe-name">{dayPlan.recipe_name}</span>
+                    <div class="photoperiod">
+                      <span class="mono-dim">{minuteToHHMM(dayPlan.main_on)}</span>
+                      <span class="period-arrow">\u2192</span>
+                      <span class="mono-dim">{minuteToHHMM(dayPlan.main_off)}</span>
+                    </div>
+                    {#if dayPlan.transition_progress !== null}
+                      <div class="transition-row">
+                        <span class="mono-label-sm">TRANSITION</span>
+                        <div class="transition-bar">
+                          <div class="transition-fill" style="width: {Math.round(dayPlan.transition_progress * 100)}%"></div>
+                        </div>
+                        <span class="mono-dim-sm">{Math.round(dayPlan.transition_progress * 100)}%</span>
+                      </div>
+                    {/if}
+                  </div>
+                  <div class="light-ring">
+                    <PolarRing recipe={activeRecipe} {nowMin} size="sm" />
+                  </div>
+                </div>
+              {:else}
+                <div class="empty">No active schedule</div>
+              {/if}
+            </section>
+          {/if}
+
         </div>
-      {:else}
-        <div class="empty">No active schedule</div>
       {/if}
-    </section>
+    {/each}
 
   {/if}
 </div>
@@ -491,6 +619,129 @@
     padding: var(--s-4);
     background: var(--bg-0);
     min-height: 100%;
+  }
+
+  /* ── Top bar ────────────────────────────────────────────────────────────────── */
+  .page-topbar {
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: calc(-1 * var(--s-3));
+  }
+
+  .btn-ghost {
+    background: none;
+    border: none;
+    padding: var(--s-1) var(--s-3);
+    font-family: var(--font-mono);
+    font-size: var(--t-10);
+    color: var(--ink-3);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    cursor: pointer;
+    border-radius: var(--r-1);
+    transition: color 0.15s, background 0.15s;
+  }
+
+  .btn-ghost:hover {
+    color: var(--ink-1);
+    background: var(--bg-2);
+  }
+
+  /* ── Section wrapper (edit mode) ───────────────────────────────────────────── */
+  .section-wrapper {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-3);
+  }
+
+  .section-wrapper.edit-active {
+    padding: var(--s-2);
+    border: 1px dashed var(--line-strong);
+    border-radius: var(--r-2);
+    cursor: default;
+  }
+
+  .section-wrapper.drag-over {
+    border-color: var(--accent);
+  }
+
+  .section-wrapper.dimmed {
+    opacity: 0.4;
+  }
+
+  /* ── Edit bar ───────────────────────────────────────────────────────────────── */
+  .edit-bar {
+    display: flex;
+    align-items: center;
+    gap: var(--s-3);
+    padding-bottom: var(--s-2);
+  }
+
+  .drag-handle {
+    color: var(--ink-4);
+    cursor: grab;
+    font-size: 16px;
+    line-height: 1;
+    user-select: none;
+    flex-shrink: 0;
+  }
+
+  .drag-handle:active {
+    cursor: grabbing;
+  }
+
+  .edit-label {
+    font-family: var(--font-mono);
+    font-size: var(--t-10);
+    color: var(--ink-3);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    flex: 1;
+  }
+
+  /* ── Visibility toggle ─────────────────────────────────────────────────────── */
+  .vis-toggle {
+    position: relative;
+    display: inline-block;
+    width: 32px;
+    height: 18px;
+    flex-shrink: 0;
+    cursor: pointer;
+  }
+
+  .vis-toggle input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+    position: absolute;
+  }
+
+  .vis-toggle .track {
+    position: absolute;
+    inset: 0;
+    background: var(--bg-3);
+    border-radius: var(--r-pill);
+    transition: background 0.2s;
+  }
+
+  .vis-toggle input:checked + .track {
+    background: var(--accent);
+  }
+
+  .vis-toggle .thumb {
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 14px;
+    height: 14px;
+    background: white;
+    border-radius: 50%;
+    transition: transform 0.2s;
+    pointer-events: none;
+  }
+
+  .vis-toggle input:checked ~ .thumb {
+    transform: translateX(14px);
   }
 
   /* ── Hero ──────────────────────────────────────────────────────────────────── */
