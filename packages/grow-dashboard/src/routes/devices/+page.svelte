@@ -539,11 +539,12 @@
               </div>
             </div>
           {:else}
+            {@const gs = groupSwitchState(g)}
+            {@const counts = groupOnCount(g)}
             <div class="group-row-wrap">
               <div class="group-row">
                 <span class="group-row-dot" style="background: {g.color}"></span>
                 <span class="group-row-name">{g.name}</span>
-                {@const gs = groupSwitchState(g)}
                 <StatusDot variant={gs === 'all-on' ? 'ok' : gs === 'all-off' ? 'crit' : 'warn'} />
                 <button
                   class="group-toggle"
@@ -557,7 +558,6 @@
                 <button class="btn-group-action" onclick={() => startEditGroup(g)}>Edit</button>
                 <button class="btn-group-action btn-group-delete" onclick={() => removeGroup(g.id)}>✕</button>
               </div>
-              {@const counts = groupOnCount(g)}
               <div class="group-row-status" class:st-ok={gs === 'all-on'} class:st-warn={gs === 'mixed'} class:st-crit={gs === 'all-off'}>
                 {#if counts.total > 0}
                   {counts.on}/{counts.total} on

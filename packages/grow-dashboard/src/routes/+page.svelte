@@ -452,12 +452,14 @@
 
     {#each config.order as key (key)}
       {#if editMode || config.visible[key]}
+        <!-- svelte-ignore a11y_no_static_element_interactions -->
         <div
           class="section-wrapper"
           class:edit-active={editMode}
           class:drag-over={editMode && draggedOver === key && draggedKey !== key}
           class:dimmed={editMode && !config.visible[key]}
           draggable={editMode}
+          role={editMode ? "listitem" : undefined}
           ondragstart={(e) => onDragStart(e, key)}
           ondragover={(e) => onDragOver(e, key)}
           ondrop={(e) => onDrop(e, key)}
