@@ -42,6 +42,7 @@
   ];
 
   const moreLinks = [
+    { href: '/cameras',     label: 'Cameras'      },
     { href: '/investigate', label: 'Investigate'  },
     { href: '/log',         label: 'Log'          },
     { href: '/settings',    label: 'Settings'     },
