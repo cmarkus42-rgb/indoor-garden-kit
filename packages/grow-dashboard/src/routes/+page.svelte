@@ -131,7 +131,7 @@
     const status = await get<StatusResponse>('/api/status');
     const visible = visibleDevices(status.devices, 'overview');
     climateDevices = visible.filter(
-      d => d.device_type === 'blu_ht' || d.device_type === 'ecowitt_indoor'
+      d => d.device_type === 'ac_infinity' || d.device_type === 'blu_ht' || d.device_type === 'ecowitt_indoor'
     );
     soilDevices = visible.filter(d => d.device_type === 'ecowitt_sensor');
 
@@ -186,7 +186,7 @@
 
   $effect(() => {
     const evt = $sseLatest;
-    if (evt?.type === 'sensor_update') loadClimate();
+    if (evt?.type === 'sensor_update' || evt?.type === 'wind_update') loadClimate();
     if (evt?.type === 'schedule_pushed') loadSchedule();
   });
 

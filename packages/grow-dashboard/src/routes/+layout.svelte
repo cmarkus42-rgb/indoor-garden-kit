@@ -36,7 +36,7 @@
   const primaryLinks = [
     { href: '/',             label: 'Overview',     icon: '◎' },
     { href: '/devices',      label: 'Devices',      icon: '◧' },
-    { href: '/ventilation',  label: 'Ventilation',  icon: '◌' },
+    { href: '/climate',      label: 'Climate',       icon: '◌' },
     { href: '/recipes',      label: 'Recipes',      icon: '◈' },
     { href: '/energy',       label: 'Energy',       icon: '◉' },
   ];
@@ -50,7 +50,7 @@
   const desktopLinks = [
     { href: '/',             label: 'Overview'    },
     { href: '/devices',      label: 'Devices'     },
-    { href: '/ventilation',  label: 'Ventilation' },
+    { href: '/climate',      label: 'Climate'     },
     { href: '/recipes',      label: 'Recipes'     },
     { href: '/energy',       label: 'Energy'      },
     { href: '/investigate',  label: 'Investigate' },
