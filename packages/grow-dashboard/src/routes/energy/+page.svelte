@@ -1,5 +1,6 @@
 <script lang="ts">
   import { get } from '$lib/api.js';
+  import { visibleDevices } from '$lib/visibility.js';
   import { sseLatest } from '$lib/sse.js';
   import type { StatusResponse, ReadingsResponse, Device, SensorReading } from '$lib/types.js';
   import { onMount } from 'svelte';
@@ -25,7 +26,7 @@
   // ── Load ────────────────────────────────────────────────────────────────────
   async function load() {
     const status = await get<StatusResponse>('/api/status');
-    plugs = status.devices.filter(d => d.device_type === 'shelly_plug');
+    plugs = visibleDevices(status.devices, 'energy').filter(d => d.device_type === 'shelly_plug');
 
     const map = new Map<string, SensorReading[]>();
     await Promise.all(

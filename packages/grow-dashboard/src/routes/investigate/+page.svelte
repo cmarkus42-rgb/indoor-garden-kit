@@ -1,5 +1,6 @@
 <script lang="ts">
   import { get } from '$lib/api.js';
+  import { visibleDevices } from '$lib/visibility.js';
   import type { StatusResponse, ReadingsResponse, Device, SensorReading } from '$lib/types.js';
   import { toTimeseries, type TimeseriesPoint } from '$lib/types.js';
   import { onMount } from 'svelte';
@@ -252,7 +253,7 @@
   // ── Load devices on mount ─────────────────────────────────────────────────
   onMount(async () => {
     const res = await get<StatusResponse>('/api/status');
-    devices = res.devices;
+    devices = visibleDevices(res.devices, 'investigate');
   });
 
   function labelMetric(metric: string): string {

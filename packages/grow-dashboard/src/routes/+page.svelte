@@ -122,10 +122,11 @@
   // ── Load climate data ──────────────────────────────────────────────────────
   async function loadClimate() {
     const status = await get<StatusResponse>('/api/status');
-    climateDevices = status.devices.filter(
+    const visible = visibleDevices(status.devices, 'overview');
+    climateDevices = visible.filter(
       d => d.device_type === 'blu_ht' || d.device_type === 'ecowitt_indoor'
     );
-    soilDevices = status.devices.filter(d => d.device_type === 'ecowitt_sensor');
+    soilDevices = visible.filter(d => d.device_type === 'ecowitt_sensor');
 
     const cMap = new Map<string, SensorReading[]>();
     await Promise.all(

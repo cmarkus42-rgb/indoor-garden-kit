@@ -1,5 +1,6 @@
 <script lang="ts">
   import { get, post, del } from '$lib/api.js';
+  import { visibleDevices } from '$lib/visibility.js';
   import { sseLatest } from '$lib/sse.js';
   import type { StatusResponse, ReadingsResponse, Device, SensorReading, WindStatusResponse } from '$lib/types.js';
   import { onMount } from 'svelte';
@@ -40,7 +41,7 @@
       get<WindStatusResponse>('/api/wind/status').catch(() => null),
     ]);
 
-    devices = status.devices.filter(d => d.device_type === 'ac_infinity');
+    devices = visibleDevices(status.devices, 'ventilation').filter(d => d.device_type === 'ac_infinity');
 
     const map = new Map<string, SensorReading[]>();
     await Promise.all(
