@@ -1,6 +1,6 @@
 <script lang="ts">
   import { clearAuth } from '$lib/auth.js';
-  import { post, get } from '$lib/api.js';
+  import { post, get, patch } from '$lib/api.js';
   import type { StatusResponse, PollingResponse, Device } from '$lib/types.js';
   import StatusDot from '$lib/components/StatusDot.svelte';
   import Chip from '$lib/components/Chip.svelte';
@@ -67,6 +67,9 @@
     }
   }
 
+  const VIEW_KEYS = ['overview', 'investigate', 'energy', 'ventilation', 'recipes'] as const;
+  let expandedDevice = $state<string | null>(null);
+
   // -- Data --
   let devices = $state<Device[]>([]);
   let pollingLoops = $state<Record<string, unknown>>({});
@@ -80,6 +83,21 @@
       const poll = await get<PollingResponse>('/api/polling');
       pollingLoops = poll.loops;
     } catch { /* ignore */ }
+  }
+
+  async function toggleEnabled(d: Device) {
+    const updated = await patch<Device>(`/api/device/${d.id}/config`, {
+      enabled: !d.enabled,
+    });
+    devices = devices.map(dev => dev.id === d.id ? updated : dev);
+  }
+
+  async function toggleViewVisibility(d: Device, view: string) {
+    const current = d.view_visibility[view] !== false;
+    const updated = await patch<Device>(`/api/device/${d.id}/config`, {
+      view_visibility: { [view]: !current },
+    });
+    devices = devices.map(dev => dev.id === d.id ? updated : dev);
   }
 
   onMount(() => {
@@ -253,8 +271,16 @@
       <div class="device-list">
         {#each devices as d}
           {@const st = deviceStatus(d.status)}
-          <div class="device-row">
+          <div class="device-row" class:device-disabled={!d.enabled}>
             <div class="device-left">
+              <button
+                class="toggle-btn"
+                class:toggle-on={d.enabled}
+                onclick={() => toggleEnabled(d)}
+                aria-label={d.enabled ? 'Disable device' : 'Enable device'}
+              >
+                <span class="toggle-track"><span class="toggle-thumb"></span></span>
+              </button>
               <StatusDot variant={st} live={st === 'ok'} />
               <div class="device-info">
                 <span class="device-name">{d.name}</span>
@@ -264,9 +290,30 @@
             <div class="device-right">
               <Chip>{d.zone}</Chip>
               <Chip variant={st}>{d.status}</Chip>
-              <span class="device-ts mono muted">{d.last_seen}</span>
+              <button
+                class="btn-ghost-sm"
+                onclick={() => expandedDevice = expandedDevice === d.id ? null : d.id}
+                aria-label="Toggle view visibility"
+              >
+                {expandedDevice === d.id ? '▾' : '▸'} Views
+              </button>
             </div>
           </div>
+          {#if expandedDevice === d.id}
+            <div class="device-views">
+              {#each VIEW_KEYS as view}
+                <label class="view-check" class:view-check-disabled={!d.enabled}>
+                  <input
+                    type="checkbox"
+                    checked={d.view_visibility[view] !== false}
+                    disabled={!d.enabled}
+                    onchange={() => toggleViewVisibility(d, view)}
+                  />
+                  <span class="view-label">{view}</span>
+                </label>
+              {/each}
+            </div>
+          {/if}
         {/each}
       </div>
     {/if}
@@ -547,6 +594,95 @@
   .device-ts {
     font-family: var(--font-mono);
     font-size: var(--t-10);
+  }
+
+  /* Device toggle */
+  .toggle-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+    flex-shrink: 0;
+  }
+
+  .toggle-track {
+    display: flex;
+    align-items: center;
+    width: 32px;
+    height: 18px;
+    border-radius: 9px;
+    background: var(--ink-1);
+    padding: 2px;
+    transition: background 0.15s;
+  }
+
+  .toggle-on .toggle-track {
+    background: oklch(68% 0.16 145);
+  }
+
+  .toggle-thumb {
+    display: block;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: var(--bg-0);
+    transition: transform 0.15s;
+  }
+
+  .toggle-on .toggle-thumb {
+    transform: translateX(14px);
+  }
+
+  .device-disabled {
+    opacity: 0.45;
+  }
+
+  /* Views expand button */
+  .btn-ghost-sm {
+    background: none;
+    border: 1px solid var(--line);
+    border-radius: var(--r-1);
+    color: var(--ink-3);
+    font-family: var(--font-mono);
+    font-size: var(--t-10);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    padding: 3px 8px;
+    cursor: pointer;
+    transition: background 0.1s, color 0.1s;
+  }
+  .btn-ghost-sm:hover {
+    background: var(--bg-2);
+    color: var(--ink-1);
+  }
+
+  /* View visibility checkboxes */
+  .device-views {
+    display: flex;
+    gap: var(--s-4);
+    padding: 0 var(--s-4) var(--s-3) calc(var(--s-4) + 40px);
+    flex-wrap: wrap;
+  }
+
+  .view-check {
+    display: flex;
+    align-items: center;
+    gap: var(--s-1);
+    cursor: pointer;
+    font-family: var(--font-mono);
+    font-size: var(--t-11);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--ink-3);
+  }
+
+  .view-check-disabled {
+    opacity: 0.4;
+    pointer-events: none;
+  }
+
+  .view-label {
+    user-select: none;
   }
 
   /* Utilities */
