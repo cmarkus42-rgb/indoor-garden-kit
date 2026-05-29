@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
+from grow_recipe.models import ClimateConfig, IrrigationConfig
+
 
 @dataclass(frozen=True, slots=True)
 class ChannelRule:
@@ -26,6 +28,8 @@ class Recipe:
     photoperiod_off: str  # "HH:MM"
     dimming: DimmingConfig = field(default_factory=DimmingConfig)
     channels: dict[str, ChannelRule] = field(default_factory=dict)
+    climate: ClimateConfig | None = None
+    irrigation: IrrigationConfig | None = None
 
     @classmethod
     def from_dict(cls, d: dict) -> Recipe:
@@ -48,12 +52,20 @@ class Recipe:
                 duration_min=ch_raw.get("duration_min"),
                 windows=windows,
             )
+        climate = None
+        if "climate" in d:
+            climate = ClimateConfig.from_dict(d["climate"])
+        irrigation = None
+        if "irrigation" in d:
+            irrigation = IrrigationConfig.from_dict(d["irrigation"])
         return cls(
             name=d["name"],
             photoperiod_on=pp.get("on", "06:00"),
             photoperiod_off=pp.get("off", "00:00"),
             dimming=dimming,
             channels=channels,
+            climate=climate,
+            irrigation=irrigation,
         )
 
     def to_dict(self) -> dict:
@@ -67,7 +79,7 @@ class Recipe:
             if rule.windows is not None:
                 ch["windows"] = list(rule.windows)
             channels[ch_name] = ch
-        return {
+        result: dict = {
             "name": self.name,
             "photoperiod": {
                 "on": self.photoperiod_on,
@@ -81,3 +93,8 @@ class Recipe:
             },
             "channels": channels,
         }
+        if self.climate is not None:
+            result["climate"] = self.climate.to_dict()
+        if self.irrigation is not None:
+            result["irrigation"] = self.irrigation.to_dict()
+        return result

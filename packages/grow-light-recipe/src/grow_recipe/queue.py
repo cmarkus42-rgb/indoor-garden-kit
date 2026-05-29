@@ -3,9 +3,9 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import date as date_type
 
-from grow_light_recipe.day_plan import compute_day_plan, DayPlan
-from grow_light_recipe.interpolate import interpolate_recipes
-from grow_light_recipe.recipe import Recipe
+from grow_recipe.day_plan import compute_day_plan, DayPlan
+from grow_recipe.interpolate import interpolate_recipes
+from grow_recipe.recipe import Recipe
 
 
 def _parse_date(s: str) -> date_type:

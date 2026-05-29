@@ -1,5 +1,5 @@
-from grow_light_recipe.queue import RecipeQueue, RecipeEntry, TransitionEntry
-from grow_light_recipe.recipe import ChannelRule, DimmingConfig, Recipe
+from grow_recipe.queue import RecipeQueue, RecipeEntry, TransitionEntry
+from grow_recipe.recipe import ChannelRule, DimmingConfig, Recipe
 
 
 def _veg() -> Recipe:

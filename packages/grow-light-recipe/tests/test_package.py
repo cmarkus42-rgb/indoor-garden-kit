@@ -1,5 +1,5 @@
 def test_public_api_imports():
-    from grow_light_recipe import (
+    from grow_recipe import (
         Phase,
         TimeRange,
         LightConfig,
@@ -12,7 +12,7 @@ def test_public_api_imports():
 
 
 def test_composer_api_imports():
-    from grow_light_recipe import (
+    from grow_recipe import (
         Recipe,
         ChannelRule,
         DimmingConfig,

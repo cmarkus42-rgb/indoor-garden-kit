@@ -42,7 +42,7 @@ export function patch<T>(path: string, body: unknown): Promise<T> {
 
 // -- Device Groups --
 
-import type { DeviceGroup, GroupsResponse } from '$lib/types.js';
+import type { DeviceGroup, GroupsResponse, ProportionalRule, SensorRulesResponse } from '$lib/types.js';
 
 export function getGroups(): Promise<GroupsResponse> {
   return get<GroupsResponse>('/api/groups');
@@ -66,4 +66,22 @@ export function updateGroup(
 
 export function deleteGroup(id: string): Promise<void> {
   return del<void>(`/api/groups/${id}`);
+}
+
+// -- Sensor Rules --
+
+export function getSensorRules(): Promise<SensorRulesResponse> {
+  return get<SensorRulesResponse>('/api/sensor-rules');
+}
+
+export function createSensorRule(body: Omit<ProportionalRule, 'id'>): Promise<ProportionalRule> {
+  return post<ProportionalRule>('/api/sensor-rules', body);
+}
+
+export function updateSensorRule(id: string, body: Omit<ProportionalRule, 'id'>): Promise<ProportionalRule> {
+  return put<ProportionalRule>(`/api/sensor-rules/${id}`, body);
+}
+
+export function deleteSensorRule(id: string): Promise<void> {
+  return del<void>(`/api/sensor-rules/${id}`);
 }

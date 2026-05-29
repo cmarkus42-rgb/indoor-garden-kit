@@ -134,6 +134,60 @@ class TestMinInterval:
         assert actions[0].action == "start"
 
 
+class TestApplyDayTargets:
+    def test_apply_day_targets_updates_thresholds(self):
+        engine = IrrigationEngine(zones=[_zone(dry=30.0, wet=60.0)])
+        engine.apply_day_targets(
+            dry_threshold=25.0,
+            wet_threshold=55.0,
+            max_duration_min=5,
+            min_interval_hours=2.0,
+        )
+        # moisture=27 is above old dry=30 (noop) but below new dry=25? No:
+        # 27 >= 25 → noop; 24 < 25 → start
+        actions = engine.evaluate({"s1": 24.0}, now=_now())
+        assert actions[0].action == "start"
+        # Confirm old threshold wouldn't trigger: 27 < 30 → would have started too,
+        # so verify with a value between old and new threshold:
+        engine2 = IrrigationEngine(zones=[_zone(dry=30.0, wet=60.0)])
+        engine2.apply_day_targets(
+            dry_threshold=25.0,
+            wet_threshold=55.0,
+            max_duration_min=5,
+            min_interval_hours=2.0,
+        )
+        # 27 is above new dry=25 → noop (would have been start with old dry=30)
+        actions2 = engine2.evaluate({"s1": 27.0}, now=_now())
+        assert actions2[0].action == "noop"
+
+    def test_apply_day_targets_preserves_state(self):
+        engine = IrrigationEngine(zones=[_zone(dry=30.0, wet=60.0)])
+        t0 = _now()
+        # Start irrigation
+        engine.evaluate({"s1": 25.0}, now=t0)
+        assert "tent-a" in engine._active_since
+        # Apply new targets — state must survive
+        engine.apply_day_targets(
+            dry_threshold=25.0,
+            wet_threshold=55.0,
+            max_duration_min=5,
+            min_interval_hours=2.0,
+        )
+        assert "tent-a" in engine._active_since
+        # Also test last_stopped is preserved
+        engine2 = IrrigationEngine(zones=[_zone(dry=30.0, wet=60.0)])
+        engine2.evaluate({"s1": 25.0}, now=t0)
+        engine2.evaluate({"s1": 60.0}, now=t0 + timedelta(minutes=1))
+        assert "tent-a" in engine2._last_stopped
+        engine2.apply_day_targets(
+            dry_threshold=25.0,
+            wet_threshold=55.0,
+            max_duration_min=5,
+            min_interval_hours=2.0,
+        )
+        assert "tent-a" in engine2._last_stopped
+
+
 class TestMultipleZones:
     def test_independent_zones(self):
         z1 = _zone(name="zone-a", sensors=["s1"], dry=30.0)

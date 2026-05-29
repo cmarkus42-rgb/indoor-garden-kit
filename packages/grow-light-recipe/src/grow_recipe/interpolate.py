@@ -2,8 +2,9 @@ from __future__ import annotations
 
 from datetime import time as dt_time
 
-from grow_light_recipe.recipe import ChannelRule, DimmingConfig, Recipe
-from grow_light_recipe.time_utils import lerp_time, minutes_to_time, time_to_minutes
+from grow_recipe.models import ClimateConfig, IrrigationConfig
+from grow_recipe.recipe import ChannelRule, DimmingConfig, Recipe
+from grow_recipe.time_utils import lerp_time, minutes_to_time, time_to_minutes
 
 
 def _parse_hhmm(s: str) -> dt_time:
@@ -17,6 +18,28 @@ def _format_hhmm(t: dt_time) -> str:
 
 def _lerp_int(a: int, b: int, t: float) -> int:
     return round(a + (b - a) * t)
+
+
+def _lerp_float(a: float, b: float, t: float) -> float:
+    return a + (b - a) * t
+
+
+def _interpolate_climate(src: ClimateConfig, dst: ClimateConfig, progress: float) -> ClimateConfig:
+    return ClimateConfig(
+        fan_intensity=_lerp_int(src.fan_intensity, dst.fan_intensity, progress),
+        temp_target_c=_lerp_float(src.temp_target_c, dst.temp_target_c, progress),
+        humidity_target=_lerp_float(src.humidity_target, dst.humidity_target, progress),
+        vpd_target_kpa=_lerp_float(src.vpd_target_kpa, dst.vpd_target_kpa, progress),
+    )
+
+
+def _interpolate_irrigation(src: IrrigationConfig, dst: IrrigationConfig, progress: float) -> IrrigationConfig:
+    return IrrigationConfig(
+        dry_threshold=_lerp_float(src.dry_threshold, dst.dry_threshold, progress),
+        wet_threshold=_lerp_float(src.wet_threshold, dst.wet_threshold, progress),
+        max_duration_min=_lerp_int(src.max_duration_min, dst.max_duration_min, progress),
+        min_interval_hours=_lerp_float(src.min_interval_hours, dst.min_interval_hours, progress),
+    )
 
 
 def interpolate_recipes(from_r: Recipe, to_r: Recipe, progress: float) -> Recipe:
@@ -50,12 +73,34 @@ def interpolate_recipes(from_r: Recipe, to_r: Recipe, progress: float) -> Recipe
             # Channel removed in target — ramp down to zero
             channels[ch_name] = _ramp_channel_out(src, progress)
 
+    # Climate interpolation
+    climate = None
+    from_c, to_c = from_r.climate, to_r.climate
+    if from_c and to_c:
+        climate = _interpolate_climate(from_c, to_c, progress)
+    elif to_c and not from_c:
+        climate = _interpolate_climate(ClimateConfig(), to_c, progress)
+    elif from_c and not to_c:
+        climate = _interpolate_climate(from_c, ClimateConfig(), progress)
+
+    # Irrigation interpolation
+    irrigation = None
+    from_i, to_i = from_r.irrigation, to_r.irrigation
+    if from_i and to_i:
+        irrigation = _interpolate_irrigation(from_i, to_i, progress)
+    elif to_i and not from_i:
+        irrigation = _interpolate_irrigation(IrrigationConfig(), to_i, progress)
+    elif from_i and not to_i:
+        irrigation = _interpolate_irrigation(from_i, IrrigationConfig(), progress)
+
     return Recipe(
         name=f"{from_r.name} → {to_r.name}",
         photoperiod_on=_format_hhmm(on_interp),
         photoperiod_off=_format_hhmm(off_interp),
         dimming=dimming,
         channels=channels,
+        climate=climate,
+        irrigation=irrigation,
     )
 
 

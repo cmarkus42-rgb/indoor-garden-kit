@@ -4,7 +4,7 @@
   import { sseLatest } from '$lib/sse.js';
   import type {
     StatusResponse, ReadingsResponse, Device, SensorReading,
-    DayPlanResponse, RecipeData
+    DayPlanResponse, RecipeData, WindStatusResponse
   } from '$lib/types.js';
   import { onMount } from 'svelte';
   import PolarRing from '$lib/components/PolarRing.svelte';
@@ -37,7 +37,14 @@
       const raw = localStorage.getItem(STORAGE_KEY);
       if (raw) {
         const parsed = JSON.parse(raw) as OverviewConfig;
-        if (Array.isArray(parsed.order) && parsed.visible) return parsed;
+        if (Array.isArray(parsed.order) && parsed.visible) {
+          // Merge in any new sections that didn't exist when config was saved
+          for (const key of SECTION_KEYS) {
+            if (!parsed.order.includes(key)) parsed.order.push(key);
+            if (parsed.visible[key] === undefined) parsed.visible[key] = DEFAULT_CONFIG.visible[key];
+          }
+          return parsed;
+        }
       }
     } catch {}
     return {
@@ -105,9 +112,12 @@
   let soilReadings = $state<Map<string, SensorReading[]>>(new Map());
   let dayPlan = $state<DayPlanResponse | null>(null);
   let activeRecipe = $state<RecipeData | null>(null);
-  let cameraStreams = $state<Record<string, { snapshot: string }>>({});
+  let cameraStreams = $state<Record<string, { snapshot: string; mjpeg: string }>>({});
   let activeCamName = $state('');
   let camSnapshotTs = $state(0);
+  let camExpanded = $state(false);
+  let camRefreshTimer: ReturnType<typeof setInterval> | null = null;
+  let wind = $state<WindStatusResponse | null>(null);
   let loading = $state(true);
 
   // ── Chart refs for series toggling ──────────────────────────────────────────
@@ -202,7 +212,7 @@
 
   async function loadCameras() {
     try {
-      const res = await get<{ streams: Record<string, { snapshot: string }> }>('/api/camera/stream-urls');
+      const res = await get<{ streams: Record<string, { snapshot: string; mjpeg: string }> }>('/api/camera/stream-urls');
       cameraStreams = res.streams;
       const names = Object.keys(cameraStreams);
       if (names.length && !activeCamName) activeCamName = names[0];
@@ -212,21 +222,63 @@
     }
   }
 
+  const SCENARIO_LABELS: Record<string, { label: string; icon: string; color: string }> = {
+    calm:     { label: 'Calm',     icon: '○',  color: 'var(--st-ok)' },
+    breeze:   { label: 'Breeze',   icon: '◐',  color: 'oklch(75% 0.15 220)' },
+    moderate: { label: 'Moderate', icon: '◑',  color: 'var(--st-warn)' },
+    stormy:   { label: 'Stormy',   icon: '●',  color: 'var(--st-crit)' },
+    none:     { label: 'Off',      icon: '○',  color: 'var(--ink-4)' },
+    unknown:  { label: '—',        icon: '?',  color: 'var(--ink-4)' },
+  };
+
+  const SCENARIO_RANK: Record<string, number> = { stormy: 3, moderate: 2, breeze: 1, calm: 0 };
+
+  async function loadWind() {
+    try {
+      wind = await get<WindStatusResponse>('/api/wind/status');
+    } catch {
+      wind = null;
+    }
+  }
+
+  let windScenario = $derived.by(() => {
+    if (!wind?.devices) return 'none';
+    const scenarios = Object.values(wind.devices).map(d => d.scenario);
+    if (!scenarios.length) return 'none';
+    return scenarios.reduce((a, b) =>
+      (SCENARIO_RANK[a] ?? -1) >= (SCENARIO_RANK[b] ?? -1) ? a : b
+    );
+  });
+
   async function loadAll() {
     loading = true;
-    await Promise.all([loadClimate(), loadSchedule(), loadCameras()]);
+    await Promise.all([loadClimate(), loadSchedule(), loadCameras(), loadWind()]);
     loading = false;
   }
 
   onMount(() => {
     loadAll();
     const tick = setInterval(() => { nowMin = getNowMin(); }, 60_000);
-    return () => clearInterval(tick);
+    return () => {
+      clearInterval(tick);
+      if (camRefreshTimer) clearInterval(camRefreshTimer);
+    };
+  });
+
+  // Auto-refresh camera snapshot every 2s when expanded
+  $effect(() => {
+    if (camExpanded && activeCamName) {
+      camRefreshTimer = setInterval(() => { camSnapshotTs = Date.now(); }, 2000);
+      return () => { if (camRefreshTimer) { clearInterval(camRefreshTimer); camRefreshTimer = null; } };
+    } else {
+      if (camRefreshTimer) { clearInterval(camRefreshTimer); camRefreshTimer = null; }
+    }
   });
 
   $effect(() => {
     const evt = $sseLatest;
     if (evt?.type === 'sensor_update' || evt?.type === 'wind_update') loadClimate();
+    if (evt?.type === 'wind_update') loadWind();
     if (evt?.type === 'schedule_pushed') loadSchedule();
   });
 
@@ -579,6 +631,18 @@
             <section class="section">
               <header class="section-header">
                 <span class="section-label">Climate</span>
+                {#if wind}
+                  {@const si = SCENARIO_LABELS[windScenario] ?? SCENARIO_LABELS['unknown']}
+                  <div class="wind-badge">
+                    <span class="wind-chip" style:color={si.color}>
+                      <span class="wind-icon">{si.icon}</span>
+                      <span>{si.label}</span>
+                    </span>
+                    {#if wind.override_active}
+                      <span class="wind-override">OVERRIDE</span>
+                    {/if}
+                  </div>
+                {/if}
                 <span class="section-hint">
                   <span class="band-swatch ok"></span> Veg 0.8–1.2
                   <span class="band-swatch warn"></span> Flower 1.2–1.6
@@ -716,7 +780,7 @@
 
           {:else if key === "camera"}
             <!-- ════════════════════════════════════════════════════════════════
-                 CAMERA SECTION (compact snapshot widget)
+                 CAMERA SECTION (compact → expandable live view)
                  ════════════════════════════════════════════════════════════════ -->
             <section class="section">
               <header class="section-header">
@@ -732,22 +796,49 @@
                     {/each}
                   </div>
                 {/if}
-                <a href="/cameras" class="section-link">Open</a>
+                {#if camExpanded}
+                  <button class="section-link" onclick={() => { camExpanded = false; }}>Minimize</button>
+                {/if}
               </header>
 
               {#if activeCamName && cameraStreams[activeCamName]}
-                <a href="/cameras" class="cam-widget">
-                  <img
-                    class="cam-thumb"
-                    src="{cameraStreams[activeCamName].snapshot}?t={camSnapshotTs}"
-                    alt="Camera {activeCamName}"
-                    onclick={(e) => { e.preventDefault(); camSnapshotTs = Date.now(); }}
-                  />
-                  <div class="cam-overlay">
-                    <span class="cam-name">{activeCamName}</span>
-                    <span class="cam-hint">Click to refresh · Open for live view</span>
+                {#if camExpanded}
+                  <!-- Expanded: fast snapshot refresh + PTZ -->
+                  <div class="cam-expanded">
+                    <button class="cam-stream-wrap" onclick={() => { camSnapshotTs = Date.now(); }}>
+                      <img
+                        class="cam-stream"
+                        src="{cameraStreams[activeCamName].snapshot}?t={camSnapshotTs}"
+                        alt="Live {activeCamName}"
+                      />
+                    </button>
+                    <div class="cam-controls">
+                      <div class="ptz-mini">
+                        <button class="ptz-btn" onclick={() => post(`/api/camera/${activeCamName}/ptz/step`, { angle: 0 })}>▲</button>
+                        <div class="ptz-mid">
+                          <button class="ptz-btn" onclick={() => post(`/api/camera/${activeCamName}/ptz/step`, { angle: 270 })}>◄</button>
+                          <button class="ptz-btn ptz-home" onclick={() => post(`/api/camera/${activeCamName}/ptz/move`, { x: 0, y: 0 })}>●</button>
+                          <button class="ptz-btn" onclick={() => post(`/api/camera/${activeCamName}/ptz/step`, { angle: 90 })}>►</button>
+                        </div>
+                        <button class="ptz-btn" onclick={() => post(`/api/camera/${activeCamName}/ptz/step`, { angle: 180 })}>▼</button>
+                      </div>
+                      <button class="cam-save-btn" onclick={async () => { await post(`/api/camera/${activeCamName}/snapshot/save`, {}); }}>Save</button>
+                      <button class="cam-save-btn" onclick={() => { camExpanded = false; }}>Close</button>
+                    </div>
                   </div>
-                </a>
+                {:else}
+                  <!-- Compact: small snapshot thumbnail, click to expand -->
+                  <button class="cam-widget" onclick={() => { camExpanded = true; camSnapshotTs = Date.now(); }}>
+                    <img
+                      class="cam-thumb"
+                      src="{cameraStreams[activeCamName].snapshot}?t={camSnapshotTs}"
+                      alt="Camera {activeCamName}"
+                    />
+                    <div class="cam-overlay">
+                      <span class="cam-name">{activeCamName}</span>
+                    </div>
+                  </button>
+                {/if}
               {:else}
                 <div class="empty">No cameras configured</div>
               {/if}
@@ -1195,11 +1286,88 @@
     overflow: hidden;
     background: #000;
     text-decoration: none;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+    width: 100%;
   }
+
+  .cam-expanded {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-2);
+  }
+
+  .cam-stream-wrap {
+    border-radius: var(--r-2);
+    overflow: hidden;
+    background: #000;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+    width: 100%;
+  }
+
+  .cam-stream {
+    width: 100%;
+    max-height: 300px;
+    object-fit: contain;
+    display: block;
+  }
+
+  .cam-controls {
+    display: flex;
+    align-items: center;
+    gap: var(--s-4);
+  }
+
+  .ptz-mini {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+  }
+
+  .ptz-mid {
+    display: flex;
+    gap: 2px;
+  }
+
+  .ptz-mini .ptz-btn {
+    width: 32px;
+    height: 32px;
+    display: grid;
+    place-items: center;
+    font-size: 12px;
+    background: var(--bg-0);
+    color: var(--ink-2);
+    border: 1px solid var(--line);
+    border-radius: var(--r-1);
+    cursor: pointer;
+  }
+
+  .ptz-mini .ptz-btn:hover { color: var(--accent); border-color: var(--accent); }
+  .ptz-mini .ptz-btn:active { background: var(--accent); color: var(--bg-0); }
+  .ptz-home { border-radius: 50% !important; font-size: 8px !important; }
+
+  .cam-save-btn {
+    font-family: var(--font-mono);
+    font-size: var(--t-9);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    padding: var(--s-2) var(--s-3);
+    background: var(--bg-0);
+    color: var(--ink-3);
+    border: 1px solid var(--line);
+    border-radius: var(--r-1);
+    cursor: pointer;
+  }
+
+  .cam-save-btn:hover { color: var(--accent); border-color: var(--accent); }
 
   .cam-thumb {
     width: 100%;
-    aspect-ratio: 16 / 9;
+    max-height: 140px;
     object-fit: cover;
     display: block;
     transition: opacity 0.2s;
@@ -1319,6 +1487,36 @@
     color: var(--ink-4);
     text-align: center;
     padding: var(--s-6) 0;
+  }
+
+  /* ── Wind badge ────────────────────────────────────────────────────────────── */
+  .wind-badge {
+    display: flex;
+    align-items: center;
+    gap: var(--s-2);
+  }
+
+  .wind-chip {
+    display: flex;
+    align-items: center;
+    gap: var(--s-1);
+    font-family: var(--font-mono);
+    font-size: var(--t-9);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+
+  .wind-icon { font-size: var(--t-14); line-height: 1; }
+
+  .wind-override {
+    font-family: var(--font-mono);
+    font-size: var(--t-9);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--st-warn);
+    background: var(--st-warn-soft);
+    border-radius: var(--r-pill);
+    padding: 1px var(--s-2);
   }
 
   /* ── Responsive ────────────────────────────────────────────────────────────── */

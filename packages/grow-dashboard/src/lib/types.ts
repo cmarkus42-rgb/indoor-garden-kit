@@ -20,6 +20,7 @@ export interface Device {
   last_seen: string;
   enabled: boolean;
   view_visibility: Record<string, boolean>;
+  config?: Record<string, unknown>;
 }
 
 export interface StatusResponse {
@@ -196,6 +197,35 @@ export interface WindStatusResponse {
   override_until: string | null;
   window_duration_minutes: number;
   devices: Record<string, WindDeviceStatus>;
+}
+
+// -- Proportional Sensor Rules --
+
+export type SensorRuleType = 'vpd' | 'temperature' | 'humidity' | 'soil_moisture';
+export type ResponseType = 'linear' | 'stepped';
+
+export interface StepBreakpoint {
+  threshold: number;
+  output: number;
+}
+
+export interface ProportionalRule {
+  id?: string;
+  enabled: boolean;
+  sensor_type: SensorRuleType;
+  target_value: number;
+  deadband: number;
+  response_type: ResponseType;
+  min_output: number;
+  max_output: number;
+  invert_response: boolean;
+  target_group_id: string;
+  target_port: number;
+  steps: StepBreakpoint[];
+}
+
+export interface SensorRulesResponse {
+  rules: ProportionalRule[];
 }
 
 // -- Helpers --

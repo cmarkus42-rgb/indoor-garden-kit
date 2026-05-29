@@ -1,6 +1,6 @@
 from datetime import time, timedelta
 
-from grow_light_recipe.time_utils import (
+from grow_recipe.time_utils import (
     lerp_time,
     minutes_to_time,
     shift_time,

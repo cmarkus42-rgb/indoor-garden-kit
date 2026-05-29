@@ -42,19 +42,21 @@
   ];
 
   const moreLinks = [
-    { href: '/cameras',     label: 'Cameras'      },
-    { href: '/investigate', label: 'Investigate'  },
-    { href: '/log',         label: 'Log'          },
-    { href: '/settings',    label: 'Settings'     },
+    { href: '/sensor-rules', label: 'Sensor Rules' },
+    { href: '/cameras',      label: 'Cameras'      },
+    { href: '/investigate',  label: 'Investigate'   },
+    { href: '/log',          label: 'Log'           },
+    { href: '/settings',     label: 'Settings'      },
   ];
 
   const desktopLinks = [
-    { href: '/',             label: 'Overview'    },
-    { href: '/devices',      label: 'Devices'     },
-    { href: '/climate',      label: 'Climate'     },
-    { href: '/recipes',      label: 'Recipes'     },
-    { href: '/energy',       label: 'Energy'      },
-    { href: '/investigate',  label: 'Investigate' },
+    { href: '/',              label: 'Overview'      },
+    { href: '/devices',       label: 'Devices'       },
+    { href: '/climate',       label: 'Climate'       },
+    { href: '/recipes',       label: 'Recipes'       },
+    { href: '/sensor-rules',  label: 'Sensor Rules'  },
+    { href: '/energy',        label: 'Energy'        },
+    { href: '/investigate',   label: 'Investigate'   },
   ];
 
   const isMoreActive = $derived(

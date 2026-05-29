@@ -1,13 +1,13 @@
 from datetime import time, timedelta
 
-from grow_light_recipe.models import (
+from grow_recipe.models import (
     LightConfig,
     LightRecipe,
     Phase,
     ScheduleEntry,
     TimeRange,
 )
-from grow_light_recipe.transition import TransitionPlan
+from grow_recipe.transition import TransitionPlan
 
 
 def _veg_recipe() -> LightRecipe:

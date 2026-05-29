@@ -1,10 +1,11 @@
-from grow_light_recipe.day_plan import (
+from grow_recipe.day_plan import (
     ChannelSchedule,
     DayPlan,
     DimmingPoint,
     compute_day_plan,
 )
-from grow_light_recipe.recipe import ChannelRule, DimmingConfig, Recipe
+from grow_recipe.models import ClimateConfig, IrrigationConfig
+from grow_recipe.recipe import ChannelRule, DimmingConfig, Recipe
 
 
 def _veg_recipe() -> Recipe:
@@ -129,3 +130,57 @@ class TestComputeDayPlan:
     def test_transition_progress_passthrough(self):
         plan = compute_day_plan(_veg_recipe(), "2026-06-01", transition_progress=0.5)
         assert plan.transition_progress == 0.5
+
+
+class TestDayPlanClimateIrrigation:
+    def test_dayplan_has_climate_field(self):
+        """DayPlan dataclass exposes climate attribute."""
+        climate = ClimateConfig(fan_intensity=6, temp_target_c=26.0, humidity_target=60.0, vpd_target_kpa=1.2)
+        r = Recipe(
+            name="Test",
+            photoperiod_on="06:00",
+            photoperiod_off="20:00",
+            channels={},
+            climate=climate,
+        )
+        plan = compute_day_plan(r, "2026-06-01")
+        assert plan.climate == climate
+
+    def test_dayplan_has_irrigation_field(self):
+        """DayPlan dataclass exposes irrigation attribute."""
+        irrigation = IrrigationConfig(dry_threshold=25.0, wet_threshold=55.0, max_duration_min=3, min_interval_hours=1.5)
+        r = Recipe(
+            name="Test",
+            photoperiod_on="06:00",
+            photoperiod_off="20:00",
+            channels={},
+            irrigation=irrigation,
+        )
+        plan = compute_day_plan(r, "2026-06-01")
+        assert plan.irrigation == irrigation
+
+    def test_dayplan_climate_none_when_recipe_has_none(self):
+        """DayPlan.climate is None when recipe has no climate."""
+        plan = compute_day_plan(_veg_recipe(), "2026-06-01")
+        assert plan.climate is None
+
+    def test_dayplan_irrigation_none_when_recipe_has_none(self):
+        """DayPlan.irrigation is None when recipe has no irrigation."""
+        plan = compute_day_plan(_veg_recipe(), "2026-06-01")
+        assert plan.irrigation is None
+
+    def test_dayplan_both_climate_and_irrigation(self):
+        """DayPlan passes through both climate and irrigation together."""
+        climate = ClimateConfig()
+        irrigation = IrrigationConfig()
+        r = Recipe(
+            name="Full",
+            photoperiod_on="06:00",
+            photoperiod_off="20:00",
+            channels={},
+            climate=climate,
+            irrigation=irrigation,
+        )
+        plan = compute_day_plan(r, "2026-06-01")
+        assert plan.climate == climate
+        assert plan.irrigation == irrigation

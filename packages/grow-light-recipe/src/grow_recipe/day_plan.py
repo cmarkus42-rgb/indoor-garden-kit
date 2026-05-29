@@ -2,8 +2,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from grow_light_recipe.recipe import Recipe
-from grow_light_recipe.time_utils import time_to_minutes
+from grow_recipe.models import ClimateConfig, IrrigationConfig
+from grow_recipe.recipe import Recipe
+from grow_recipe.time_utils import time_to_minutes
 
 
 def _parse_hhmm(s: str) -> int:
@@ -34,6 +35,8 @@ class DayPlan:
     main_off: int
     dimming_curve: tuple[DimmingPoint, ...]
     channels: tuple[ChannelSchedule, ...]
+    climate: ClimateConfig | None = None
+    irrigation: IrrigationConfig | None = None
 
 
 def compute_day_plan(
@@ -93,4 +96,6 @@ def compute_day_plan(
         main_off=effective_off,
         dimming_curve=dimming_curve,
         channels=tuple(channel_list),
+        climate=recipe.climate,
+        irrigation=recipe.irrigation,
     )

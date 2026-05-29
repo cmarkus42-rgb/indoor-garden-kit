@@ -2,6 +2,12 @@
   import StatusDot from './StatusDot.svelte';
 
   type TileStatus = 'ok' | 'warn' | 'crit' | 'offline';
+  type WindScenario = 'calm' | 'breeze' | 'moderate' | 'stormy';
+
+  interface PortStatus {
+    port: number;
+    speed: number;
+  }
 
   interface Props {
     label: string;
@@ -18,9 +24,25 @@
     groupColor?: string;
     dimmerValue?: number;
     onDimmer?: (pct: number) => void;
+    // AC Infinity props
+    deviceType?: string;
+    deviceId?: string;
+    windStatus?: WindScenario;
+    portSpeeds?: PortStatus[];
+    fanSpeed?: number;
+    onFanSpeed?: (speed: number) => void;
   }
 
-  const { label, sub, metric, unit, status, sparklinePoints, lastSeen, periodic, toggled, onToggle, onEdit, groupColor, dimmerValue, onDimmer }: Props = $props();
+  const { label, sub, metric, unit, status, sparklinePoints, lastSeen, periodic, toggled, onToggle, onEdit, groupColor, dimmerValue, onDimmer, deviceType, deviceId, windStatus, portSpeeds, fanSpeed, onFanSpeed }: Props = $props();
+
+  const isAcInfinity = $derived(deviceType === 'ac_infinity');
+
+  const WIND_COLORS: Record<WindScenario, string> = {
+    calm: 'oklch(68% 0.16 145)',
+    breeze: 'oklch(68% 0.16 240)',
+    moderate: 'oklch(68% 0.16 60)',
+    stormy: 'oklch(68% 0.16 25)',
+  };
 
   function formatTimeAgo(isoDate: string): string {
     const diffMin = Math.floor((Date.now() - new Date(isoDate).getTime()) / 60_000);
@@ -75,6 +97,9 @@
         <span class="tile-sub">{sub}</span>
       {/if}
     </div>
+    {#if isAcInfinity && windStatus}
+      <span class="wind-chip" style="background: {WIND_COLORS[windStatus]}">{windStatus}</span>
+    {/if}
     <StatusDot variant={dotVariant} live={status === 'ok' && !periodic} />
   </div>
 
@@ -125,6 +150,36 @@
         aria-label="Brightness"
       />
       <span class="dimmer-label">{dimmerValue}%</span>
+    </div>
+  {/if}
+
+  {#if isAcInfinity && portSpeeds && portSpeeds.length > 0}
+    <div class="ac-ports">
+      {#each portSpeeds.slice(0, 4) as ps}
+        <div class="ac-port-row">
+          <span class="ac-port-label">port{ps.port}</span>
+          <div class="ac-port-track">
+            <div class="ac-port-fill" style="width: {(ps.speed / 10) * 100}%"></div>
+          </div>
+          <span class="ac-port-val">{ps.speed}</span>
+        </div>
+      {/each}
+    </div>
+  {/if}
+
+  {#if isAcInfinity && onFanSpeed != null && fanSpeed != null}
+    <div class="dimmer-row">
+      <input
+        type="range"
+        class="dimmer-slider"
+        min="0"
+        max="10"
+        step="1"
+        value={fanSpeed}
+        oninput={(e) => onFanSpeed(Number(e.currentTarget.value))}
+        aria-label="Fan speed"
+      />
+      <span class="dimmer-label">{fanSpeed}</span>
     </div>
   {/if}
 </div>
@@ -347,6 +402,65 @@
     font-size: var(--t-9);
     color: var(--ink-3);
     min-width: 32px;
+    text-align: right;
+  }
+
+  /* ── Wind scenario chip ────────────────────────────────────────────────── */
+  .wind-chip {
+    font-family: var(--font-mono);
+    font-size: var(--t-9);
+    color: var(--bg-0);
+    padding: 1px 8px;
+    border-radius: var(--r-pill);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    line-height: 1.6;
+    white-space: nowrap;
+    font-weight: 600;
+  }
+
+  /* ── AC Infinity port bars ─────────────────────────────────────────────── */
+  .ac-ports {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    padding-top: var(--s-1);
+  }
+
+  .ac-port-row {
+    display: flex;
+    align-items: center;
+    gap: var(--s-2);
+  }
+
+  .ac-port-label {
+    font-family: var(--font-mono);
+    font-size: var(--t-9);
+    color: var(--ink-4);
+    min-width: 34px;
+    letter-spacing: 0.04em;
+  }
+
+  .ac-port-track {
+    flex: 1;
+    height: 4px;
+    background: var(--line);
+    border-radius: var(--r-pill);
+    overflow: hidden;
+  }
+
+  .ac-port-fill {
+    height: 100%;
+    background: var(--accent);
+    border-radius: var(--r-pill);
+    transition: width 0.2s ease;
+  }
+
+  .ac-port-val {
+    font-family: var(--font-mono);
+    font-size: var(--t-9);
+    color: var(--ink-3);
+    min-width: 14px;
     text-align: right;
   }
 </style>

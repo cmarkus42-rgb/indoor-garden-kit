@@ -78,6 +78,27 @@ class IrrigationEngine:
             reason=f"avg moisture {avg:.1f}% below dry threshold {zone.dry_threshold}%",
         )
 
+    def apply_day_targets(
+        self,
+        dry_threshold: float,
+        wet_threshold: float,
+        max_duration_min: int,
+        min_interval_hours: float,
+    ) -> None:
+        from datetime import timedelta
+
+        self._zones = [
+            IrrigationZone(
+                name=z.name,
+                sensors=z.sensors,
+                dry_threshold=dry_threshold,
+                wet_threshold=wet_threshold,
+                max_duration=timedelta(minutes=max_duration_min),
+                min_interval=timedelta(hours=min_interval_hours),
+            )
+            for z in self._zones
+        ]
+
     def _stop(self, zone_name: str, now: datetime) -> None:
         del self._active_since[zone_name]
         self._last_stopped[zone_name] = now

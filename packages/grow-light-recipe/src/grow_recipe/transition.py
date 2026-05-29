@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from grow_light_recipe.models import LightRecipe, ScheduleEntry, TimeRange
-from grow_light_recipe.time_utils import lerp_time
+from grow_recipe.models import LightRecipe, ScheduleEntry, TimeRange
+from grow_recipe.time_utils import lerp_time
 
 
 @dataclass(frozen=True, slots=True)

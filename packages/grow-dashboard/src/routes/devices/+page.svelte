@@ -9,7 +9,8 @@
     DayPlanResponse,
     RecipeData,
     ReadingsResponse,
-    DeviceGroup
+    DeviceGroup,
+    WindStatusResponse
   } from '$lib/types.js';
   import { onMount, untrack } from 'svelte';
   import KPI from '$lib/components/KPI.svelte';
@@ -24,6 +25,7 @@
   let recipe = $state<RecipeData | null>(null);
   let nowMin = $state(getNowMin());
   let sensorData = $state<Record<string, Record<string, number>>>({});
+  let windStatus = $state<WindStatusResponse | null>(null);
 
   // Inline device-name editing
   let editingId = $state<string | null>(null);
@@ -144,22 +146,35 @@
   let photoLabel = $derived(recipe ? `${recipe.photoperiod.on}–${recipe.photoperiod.off}` : '');
 
   // ── Device grouping ────────────────────────────────────────────────────────
-  const GROUP_ORDER = ['Lighting', 'Climate', 'Soil moisture', 'Power', 'Irrigation'] as const;
+  const GROUP_ORDER = ['Lighting', 'Climate', 'Ventilation', 'Soil moisture', 'Power', 'Irrigation'] as const;
   type Group = (typeof GROUP_ORDER)[number];
 
   function deviceGroup(d: Device): Group {
-    const n = d.name.toLowerCase();
+    const role = (d.config?.role as string)?.toLowerCase();
     const t = d.device_type;
+
+    // Primary: explicit role from backend config
+    if (role === 'light') return 'Lighting';
+    if (role === 'irrigation') return 'Irrigation';
+    if (role === 'ventilation') return 'Ventilation';
+    if (role === 'soil_moisture') return 'Soil moisture';
+    if (role === 'climate') return 'Climate';
+
+    // Secondary: device_type based defaults
     if (t === 'shelly_dimmer') return 'Lighting';
-    if (t === 'shelly_plug') {
-      if (n.includes('light') || n.includes('far') || n.includes('dawn') || n.includes('red')) {
-        return 'Lighting';
-      }
-      return 'Power';
-    }
+    if (t === 'ac_infinity') return 'Ventilation';
     if (t === 'blu_ht' || t === 'ecowitt_indoor') return 'Climate';
     if (t === 'ecowitt_sensor') return 'Soil moisture';
     if (t === 'shelly_relay') return 'Irrigation';
+
+    // Tertiary: name-based fallback for shelly_plug
+    if (t === 'shelly_plug') {
+      const n = d.name.toLowerCase();
+      if (n.includes('light') || n.includes('far') || n.includes('dawn') || n.includes('red') || n.includes('bloom') || n.includes('flower')) {
+        return 'Lighting';
+      }
+    }
+
     return 'Power';
   }
 
@@ -193,6 +208,10 @@
         return { metric: s?.soil_moisture != null ? String(Math.round(s.soil_moisture)) : '—', unit: '%' };
       case 'ecowitt_indoor':
         return { metric: s?.temperature != null ? s.temperature.toFixed(1) : '—', unit: '°C' };
+      case 'ac_infinity': {
+        const speed = s?.fan_speed;
+        return { metric: speed != null ? String(speed) : '—', unit: 'spd' };
+      }
       case 'shelly_relay':
         return { metric: d.status === 'online' ? 'RDY' : 'OFF', unit: '' };
       default:
@@ -365,6 +384,62 @@
     }, 300));
   }
 
+  // ── AC Infinity fan control ────────────────────────────────────────────────
+  let lastFanSpeed = new Map<string, number>();
+  let fanTimers = new Map<string, ReturnType<typeof setTimeout>>();
+
+  function acFanSpeed(d: Device): number {
+    return sensorData[d.id]?.fan_speed ?? 0;
+  }
+
+  function acPortSpeeds(d: Device): { port: number; speed: number }[] {
+    const s = sensorData[d.id];
+    if (!s) return [];
+    const ports: { port: number; speed: number }[] = [];
+    for (let i = 1; i <= 4; i++) {
+      const v = s[`port${i}_speed`];
+      if (v != null) ports.push({ port: i, speed: v });
+    }
+    return ports;
+  }
+
+  function acWindScenario(d: Device): 'calm' | 'breeze' | 'moderate' | 'stormy' | undefined {
+    if (!windStatus) return undefined;
+    const devStatus = windStatus.devices?.[d.id];
+    if (!devStatus) return undefined;
+    const valid = ['calm', 'breeze', 'moderate', 'stormy'] as const;
+    if (valid.includes(devStatus.scenario as typeof valid[number])) {
+      return devStatus.scenario as typeof valid[number];
+    }
+    return undefined;
+  }
+
+  function handleFanSpeed(d: Device, speed: number) {
+    if (speed > 0) lastFanSpeed.set(d.id, speed);
+    sensorData = { ...sensorData, [d.id]: { ...(sensorData[d.id] ?? {}), fan_speed: speed } };
+    const existing = fanTimers.get(d.id);
+    if (existing) clearTimeout(existing);
+    fanTimers.set(d.id, setTimeout(async () => {
+      fanTimers.delete(d.id);
+      try {
+        await post(`/api/device/${d.id}/command`, {
+          method: 'set_fan_speed',
+          params: { speed, port: 1 }
+        });
+      } catch { /* ignore */ }
+    }, 300));
+  }
+
+  function handleAcToggle(d: Device) {
+    const current = acFanSpeed(d);
+    if (current > 0) {
+      lastFanSpeed.set(d.id, current);
+      handleFanSpeed(d, 0);
+    } else {
+      handleFanSpeed(d, lastFanSpeed.get(d.id) ?? 5);
+    }
+  }
+
   // ── Data loading ───────────────────────────────────────────────────────────
   async function loadSensors() {
     if (!devices.length) return;
@@ -412,6 +487,7 @@
   onMount(() => {
     refresh();
     loadSchedule();
+    fetch('/api/wind/status').then(r => r.json()).then(d => { windStatus = d; }).catch(() => {});
     const tick = setInterval(() => { nowMin = getNowMin(); }, 60_000);
     return () => clearInterval(tick);
   });
@@ -437,6 +513,9 @@
       }
       if (evt.type === 'device_status') {
         refresh();
+      }
+      if (evt.type === 'wind_update') {
+        fetch('/api/wind/status').then(r => r.json()).then(d => { windStatus = d; }).catch(() => {});
       }
     });
   });
@@ -495,12 +574,18 @@
                     status={tileStatus(d)}
                     lastSeen={d.last_seen}
                     periodic={d.device_type === 'blu_ht'}
-                    toggled={isControllable(d) ? switchState(d) : null}
-                    onToggle={isControllable(d) ? () => handleToggle(d) : undefined}
+                    toggled={isControllable(d) ? switchState(d) : d.device_type === 'ac_infinity' ? acFanSpeed(d) > 0 : null}
+                    onToggle={isControllable(d) ? () => handleToggle(d) : d.device_type === 'ac_infinity' ? () => handleAcToggle(d) : undefined}
                     onEdit={editingId !== d.id ? () => startEdit(d) : undefined}
                     groupColor={deviceGroupColor.get(d.id)}
                     dimmerValue={d.device_type === 'shelly_dimmer' ? (sensorData[d.id]?.brightness ?? 0) : undefined}
                     onDimmer={d.device_type === 'shelly_dimmer' ? (pct: number) => handleDimmer(d, pct) : undefined}
+                    deviceType={d.device_type}
+                    deviceId={d.id}
+                    windStatus={d.device_type === 'ac_infinity' ? acWindScenario(d) : undefined}
+                    portSpeeds={d.device_type === 'ac_infinity' ? acPortSpeeds(d) : undefined}
+                    fanSpeed={d.device_type === 'ac_infinity' ? acFanSpeed(d) : undefined}
+                    onFanSpeed={d.device_type === 'ac_infinity' ? (speed: number) => handleFanSpeed(d, speed) : undefined}
                   />
                   <button
                     class="tile-visibility-btn"
