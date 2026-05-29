@@ -18,6 +18,8 @@ export interface Device {
   zone: string;
   status: string;
   last_seen: string;
+  enabled: boolean;
+  view_visibility: Record<string, boolean>;
 }
 
 export interface StatusResponse {

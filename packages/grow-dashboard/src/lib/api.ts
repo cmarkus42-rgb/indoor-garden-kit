@@ -36,6 +36,10 @@ export function del<T>(path: string): Promise<T> {
   return request<T>('DELETE', path);
 }
 
+export function patch<T>(path: string, body: unknown): Promise<T> {
+  return request<T>('PATCH', path, body);
+}
+
 // -- Device Groups --
 
 import type { DeviceGroup, GroupsResponse } from '$lib/types.js';
