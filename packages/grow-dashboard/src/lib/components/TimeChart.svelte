@@ -63,7 +63,7 @@
       scales,
       axes: axes ?? defaultAxes,
       padding: [8, 8, 0, 0],
-      legend: { show: true, live: true },
+      legend: { show: false },
       cursor: {
         drag: { x: true, y: false },
         focus: { prox: 16 },

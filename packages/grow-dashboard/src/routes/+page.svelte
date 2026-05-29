@@ -181,6 +181,29 @@
   }
   let nowMin = $state(getNowMin());
 
+  // ── Time range filter ─────────────────────────────────────────────────────
+  type TimeRange = '1h' | '6h' | '24h' | '7d' | 'max';
+  const TIME_RANGES: TimeRange[] = ['1h', '6h', '24h', '7d', 'max'];
+  const RANGE_SECONDS: Record<TimeRange, number> = {
+    '1h': 3600,
+    '6h': 21600,
+    '24h': 86400,
+    '7d': 604800,
+    'max': Infinity,
+  };
+
+  let climateRange = $state<TimeRange>('1h');
+  let soilRange = $state<TimeRange>('1h');
+
+  function filterByRange(aligned: uPlot.AlignedData, range: TimeRange): uPlot.AlignedData {
+    if (range === 'max' || !aligned[0]?.length) return aligned;
+    const xs = aligned[0] as number[];
+    const cutoff = Math.round(Date.now() / 1000) - RANGE_SECONDS[range];
+    const startIdx = xs.findIndex(t => t >= cutoff);
+    if (startIdx < 0) return aligned;
+    return aligned.map(arr => (arr as any[]).slice(startIdx)) as uPlot.AlignedData;
+  }
+
   // ── Climate KPI helpers ────────────────────────────────────────────────────
   function latestVal(map: Map<string, SensorReading[]>, devs: Device[], metric: string): number | null {
     for (const d of devs) {
@@ -330,6 +353,10 @@
     return { data: [xs, ...ys] as uPlot.AlignedData, series };
   });
 
+  // ── Filtered chart data (time range) ──────────────────────────────────────
+  let climateChartFiltered = $derived(filterByRange(climateChart.data, climateRange));
+  let moistureChartFiltered = $derived(filterByRange(moistureChart.data, soilRange));
+
   // ── VPD band overlay ───────────────────────────────────────────────────────
   const vpdHooks: uPlot.Hooks.Arrays = {
     draw: [(u) => {
@@ -394,7 +421,7 @@
 
   // ── Formatting helpers ─────────────────────────────────────────────────────
   function fmt(v: number | null, d = 1): string {
-    return v !== null ? v.toFixed(d) : '\u2014';
+    return v !== null ? v.toFixed(d) : '—';
   }
 
   function formatLastSeen(iso: string): string {
@@ -433,20 +460,23 @@
       </div>
     {/if}
     <div class="hero-kpis">
-      <KPI label="Temperature" value={fmt(temp)} unit="\u00b0C" />
+      <KPI label="Temperature" value={fmt(temp)} unit="°C" />
       <KPI label="Humidity" value={fmt(rh, 0)} unit="%" />
       <div class="kpi-vpd-wrap">
         <KPI label="VPD" value={fmt(vpd, 2)} unit="kPa" />
         <div class="vpd-badge"><StatusDot variant={vpdStatus(vpd)} /></div>
       </div>
-      <KPI label="Soil Avg" value={avgMoisture !== null ? String(avgMoisture) : '\u2014'} unit="%" />
+      <KPI label="Soil Avg" value={avgMoisture !== null ? String(avgMoisture) : '—'} unit="%" />
+      {#if !activeRecipe}
+        <span class="no-schedule-hint">No active schedule</span>
+      {/if}
     </div>
   </section>
 
   {#if loading}
     <div class="loading">
       <div class="loading-bar"></div>
-      <span class="loading-text">Loading sensor data\u2026</span>
+      <span class="loading-text">Loading sensor data…</span>
     </div>
   {:else}
 
@@ -489,14 +519,23 @@
               <header class="section-header">
                 <span class="section-label">Climate</span>
                 <span class="section-hint">
-                  <span class="band-swatch ok"></span> Veg 0.8\u20131.2
-                  <span class="band-swatch warn"></span> Flower 1.2\u20131.6
+                  <span class="band-swatch ok"></span> Veg 0.8–1.2
+                  <span class="band-swatch warn"></span> Flower 1.2–1.6
                 </span>
+                <div class="range-picker">
+                  {#each TIME_RANGES as r}
+                    <button
+                      class="range-btn"
+                      class:active={climateRange === r}
+                      onclick={() => climateRange = r}
+                    >{r}</button>
+                  {/each}
+                </div>
               </header>
 
               {#if climateDevices.length}
                 <TimeChart
-                  data={climateChart.data}
+                  data={climateChartFiltered}
                   series={climateChart.series}
                   height={160}
                   hooks={vpdHooks}
@@ -509,7 +548,7 @@
                       label={d.name}
                       sub={`${fmt(h, 0)}% RH`}
                       metric={fmt(t)}
-                      unit="\u00b0C"
+                      unit="°C"
                       status={d.status === 'online' ? 'ok' : 'crit'}
                       periodic={true}
                       lastSeen={d.last_seen}
@@ -532,11 +571,20 @@
                   <span class="th-swatch warn"></span> 30% dry
                   <span class="th-swatch ok"></span> 60% field cap.
                 </span>
+                <div class="range-picker">
+                  {#each TIME_RANGES as r}
+                    <button
+                      class="range-btn"
+                      class:active={soilRange === r}
+                      onclick={() => soilRange = r}
+                    >{r}</button>
+                  {/each}
+                </div>
               </header>
 
               {#if soilDevices.length}
                 <TimeChart
-                  data={moistureChart.data}
+                  data={moistureChartFiltered}
                   series={moistureChart.series}
                   height={160}
                   hooks={thresholdHooks}
@@ -583,7 +631,7 @@
                     <span class="recipe-name">{dayPlan.recipe_name}</span>
                     <div class="photoperiod">
                       <span class="mono-dim">{minuteToHHMM(dayPlan.main_on)}</span>
-                      <span class="period-arrow">\u2192</span>
+                      <span class="period-arrow">→</span>
                       <span class="mono-dim">{minuteToHHMM(dayPlan.main_off)}</span>
                     </div>
                     {#if dayPlan.transition_progress !== null}
@@ -785,6 +833,16 @@
     right: var(--s-2);
   }
 
+  .no-schedule-hint {
+    font-family: var(--font-mono);
+    font-size: var(--t-10);
+    color: var(--ink-4);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    align-self: center;
+    flex-basis: 100%;
+  }
+
   /* ── Sections ──────────────────────────────────────────────────────────────── */
   .section {
     display: flex;
@@ -839,6 +897,40 @@
 
   .th-swatch.ok   { background: var(--st-ok); }
   .th-swatch.warn { background: var(--st-warn); }
+
+  /* ── Range picker ───────────────────────────────────────────────────────── */
+  .range-picker {
+    display: flex;
+    gap: 2px;
+    margin-left: auto;
+    background: var(--bg-2);
+    border-radius: var(--r-1);
+    padding: 2px;
+  }
+
+  .range-btn {
+    background: none;
+    border: none;
+    padding: 2px 8px;
+    font-family: var(--font-mono);
+    font-size: var(--t-9);
+    color: var(--ink-4);
+    cursor: pointer;
+    border-radius: var(--r-1);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    transition: color 0.15s, background 0.15s;
+  }
+
+  .range-btn:hover {
+    color: var(--ink-2);
+  }
+
+  .range-btn.active {
+    background: var(--bg-0);
+    color: var(--ink-1);
+    box-shadow: 0 1px 2px oklch(0% 0 0 / 0.12);
+  }
 
   /* ── Climate device row ────────────────────────────────────────────────────── */
   .device-row {
