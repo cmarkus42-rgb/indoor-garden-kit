@@ -123,9 +123,9 @@
 
 <div class="settings-page">
 
-  <!-- SECTION: Darstellung -->
+  <!-- SECTION: Appearance -->
   <section class="settings-section">
-    <div class="section-h">Darstellung</div>
+    <div class="section-h">Appearance</div>
     <div class="section-body">
       <div class="kv-row">
         <span class="kv-key">Theme</span>
@@ -151,18 +151,18 @@
     </div>
   </section>
 
-  <!-- SECTION: Sicherheit -->
+  <!-- SECTION: Security -->
   <section class="settings-section">
-    <div class="section-h">Sicherheit</div>
+    <div class="section-h">Security</div>
     <div class="section-body">
       <div class="kv-row">
         <span class="kv-key">Session</span>
-        <button class="btn ghost" onclick={() => clearAuth()}>Abmelden</button>
+        <button class="btn ghost" onclick={() => clearAuth()}>Sign Out</button>
       </div>
       <div class="pin-form">
         <div class="pin-fields">
           <label class="pin-field">
-            <span class="pin-label">Aktueller PIN</span>
+            <span class="pin-label">Current PIN</span>
             <input
               class="pin-input"
               type="password"
@@ -173,7 +173,7 @@
             />
           </label>
           <label class="pin-field">
-            <span class="pin-label">Neuer PIN</span>
+            <span class="pin-label">New PIN</span>
             <input
               class="pin-input"
               type="password"

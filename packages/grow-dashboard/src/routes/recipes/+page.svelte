@@ -101,7 +101,7 @@
           <line x1="6.5" y1="1" x2="6.5" y2="12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
           <line x1="1" y1="6.5" x2="12" y2="6.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
         </svg>
-        Neues Rezept
+        New Recipe
       </button>
       <button class="btn-ghost" onclick={() => fileInput.click()}>
         <svg width="13" height="13" viewBox="0 0 13 13" fill="none">

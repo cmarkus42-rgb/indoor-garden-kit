@@ -47,9 +47,9 @@
       const cur = current.channels[ch];
       const orig = original.channels[ch];
       if (!orig && cur) {
-        diffs.push({ field: `Ch: ${ch}`, before: '—', after: `neu (${cur.rule})` });
+        diffs.push({ field: `Ch: ${ch}`, before: '—', after: `new (${cur.rule})` });
       } else if (orig && !cur) {
-        diffs.push({ field: `Ch: ${ch}`, before: orig.rule, after: 'geloescht' });
+        diffs.push({ field: `Ch: ${ch}`, before: orig.rule, after: 'deleted' });
       } else if (orig && cur) {
         if (JSON.stringify(cur) !== JSON.stringify(orig)) {
           diffs.push({ field: `Ch: ${ch}`, before: JSON.stringify(orig), after: JSON.stringify(cur) });
@@ -68,7 +68,7 @@
 {#if hasChanges}
   <div class="save-bar" class:save-bar--error={hasErrors}>
     <div class="bar-main">
-      <button class="expand-btn" onclick={() => expanded = !expanded} aria-label="Diff anzeigen">
+      <button class="expand-btn" onclick={() => expanded = !expanded} aria-label="Show diff">
         <svg
           width="16" height="16" viewBox="0 0 16 16"
           style="transform: rotate({expanded ? '180deg' : '0deg'}); transition: transform 0.15s"
@@ -98,9 +98,9 @@
 
     {#if expanded}
       <div class="diff-grid">
-        <div class="diff-head">Feld</div>
-        <div class="diff-head">Vorher</div>
-        <div class="diff-head">Nachher</div>
+        <div class="diff-head">Field</div>
+        <div class="diff-head">Before</div>
+        <div class="diff-head">After</div>
         {#each diffs as d}
           <div class="diff-field">{d.field}</div>
           <div class="diff-before">{d.before}</div>

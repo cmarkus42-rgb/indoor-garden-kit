@@ -16,12 +16,12 @@
 
   const templates: ChannelTemplate[] = [
     {
-      label: 'Vor-Nacht',
+      label: 'Pre-Night',
       name: 'far_red',
       rule: { rule: 'before_on', offset_min: 30, duration_min: 30 },
     },
     {
-      label: 'Infrarot',
+      label: 'Infrared',
       name: 'infrared',
       rule: { rule: 'after_off', offset_min: 0, duration_min: 15 },
     },
@@ -31,7 +31,7 @@
       rule: { rule: 'window', windows: [{ start: '12:00', duration_min: 30 }] },
     },
     {
-      label: 'Eigener',
+      label: 'Custom',
       name: '',
       rule: { rule: 'before_on', offset_min: 0, duration_min: 15 },
     },
@@ -45,7 +45,7 @@
 
   function pickName(base: string): string {
     if (!base) {
-      const custom = prompt('Channel-Name:');
+      const custom = prompt('Channel name:');
       return custom?.trim() ?? '';
     }
     if (!existingNames.includes(base)) return base;
@@ -62,7 +62,7 @@
 </script>
 
 <div class="add-panel">
-  <div class="panel-label">Channel hinzufuegen</div>
+  <div class="panel-label">Add Channel</div>
   <div class="grid">
     {#each templates as tpl}
       <button class="template-card" onclick={() => select(tpl)}>

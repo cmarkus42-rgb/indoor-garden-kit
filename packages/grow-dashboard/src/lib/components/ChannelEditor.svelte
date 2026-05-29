@@ -36,7 +36,7 @@
     (rule.rule !== 'window' && rule.offset_min != null && rule.offset_min < 0) ? 'Offset >= 0' : ''
   );
   let errDuration = $derived(
-    (rule.rule !== 'window' && rule.duration_min != null && rule.duration_min <= 0) ? 'Dauer > 0' : ''
+    (rule.rule !== 'window' && rule.duration_min != null && rule.duration_min <= 0) ? 'Duration > 0' : ''
   );
 
   /* ---------- updaters ---------- */
@@ -130,10 +130,10 @@
       <option value="window">window</option>
     </select>
     {#if isDirtyRule()}
-      <span class="tag tag--dirty">geaendert</span>
+      <span class="tag tag--dirty">changed</span>
     {/if}
 
-    <button class="delete-btn" onclick={onDelete} aria-label="Channel loeschen">
+    <button class="delete-btn" onclick={onDelete} aria-label="Delete channel">
       <svg width="16" height="16" viewBox="0 0 16 16"><line x1="4" y1="4" x2="12" y2="12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><line x1="12" y1="4" x2="4" y2="12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
     </button>
   </div>
@@ -145,16 +145,16 @@
         unit="min"
         label="OFFSET"
         dirty={isDirtyOffset()}
-        sub={isDirtyOffset() && originalRule?.offset_min != null ? `war ${originalRule.offset_min}` : undefined}
+        sub={isDirtyOffset() && originalRule?.offset_min != null ? `was ${originalRule.offset_min}` : undefined}
         error={errOffset || undefined}
         onStep={stepOffset}
       />
       <ValueCard
         value={rule.duration_min ?? 0}
         unit="min"
-        label="DAUER"
+        label="DURATION"
         dirty={isDirtyDuration()}
-        sub={isDirtyDuration() && originalRule?.duration_min != null ? `war ${originalRule.duration_min}` : undefined}
+        sub={isDirtyDuration() && originalRule?.duration_min != null ? `was ${originalRule.duration_min}` : undefined}
         error={errDuration || undefined}
         onStep={stepDuration}
       />
@@ -177,18 +177,18 @@
           <ValueCard
             value={w.duration_min}
             unit="min"
-            label="DAUER"
+            label="DURATION"
             dirty={false}
             onStep={(d) => stepWindowDuration(idx, d)}
           />
           {#if rule.windows && rule.windows.length > 1}
-            <button class="remove-window" onclick={() => removeWindow(idx)} aria-label="Fenster entfernen">
+            <button class="remove-window" onclick={() => removeWindow(idx)} aria-label="Remove window">
               <svg width="14" height="14" viewBox="0 0 16 16"><line x1="4" y1="8" x2="12" y2="8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
             </button>
           {/if}
         </div>
       {/each}
-      <button class="add-window-link" onclick={addWindow}>+ Fenster hinzufuegen</button>
+      <button class="add-window-link" onclick={addWindow}>+ Add window</button>
     </div>
   {/if}
 </div>

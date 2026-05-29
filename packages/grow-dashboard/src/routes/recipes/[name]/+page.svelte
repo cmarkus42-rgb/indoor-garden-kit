@@ -166,10 +166,10 @@
         </div>
 
         {#if activeTab === 'visual'}
-          <!-- Photoperiode -->
+          <!-- Photoperiod -->
           <section class="form-section">
             <div class="section-header">
-              <span class="section-label">PHOTOPERIODE</span>
+              <span class="section-label">PHOTOPERIOD</span>
             </div>
             <div class="time-row">
               <label class="field">
@@ -477,7 +477,7 @@
     text-transform: uppercase;
   }
 
-  /* ── Photoperiode ── */
+  /* ── Photoperiod ── */
   .time-row {
     display: grid;
     grid-template-columns: 1fr 1fr;

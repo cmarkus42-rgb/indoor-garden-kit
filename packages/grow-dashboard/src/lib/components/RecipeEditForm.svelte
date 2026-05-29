@@ -51,7 +51,7 @@
     recipe.photoperiod.on === recipe.photoperiod.off ? 'On and Off cannot be the same' : ''
   );
   let errMaxMin = $derived(
-    recipe.dimming.max_pct <= recipe.dimming.min_pct ? 'Max muss groesser als Min sein' : ''
+    recipe.dimming.max_pct <= recipe.dimming.min_pct ? 'Max must be greater than Min' : ''
   );
   let errSunrise = $derived(
     recipe.dimming.sunrise_min < 0 || recipe.dimming.sunrise_min > 120 ? '0–120 min' : ''
@@ -94,7 +94,7 @@
 </script>
 
 <section class="edit-form">
-  <h3 class="section-title">Photoperiode</h3>
+  <h3 class="section-title">Photoperiod</h3>
   {#if errPhotoperiod}
     <p class="section-error">{errPhotoperiod}</p>
   {/if}
@@ -104,7 +104,7 @@
       unit="h"
       label="ON HOUR"
       dirty={dirtyOnH}
-      sub={dirtyOnH ? `war ${String(origOnTime.h).padStart(2, '0')}` : undefined}
+      sub={dirtyOnH ? `was ${String(origOnTime.h).padStart(2, '0')}` : undefined}
       error={errPhotoperiod ? ' ' : undefined}
       onStep={(d) => updateOn('h', d)}
     />
@@ -113,7 +113,7 @@
       unit="min"
       label="ON MIN"
       dirty={dirtyOnM}
-      sub={dirtyOnM ? `war ${String(origOnTime.m).padStart(2, '0')}` : undefined}
+      sub={dirtyOnM ? `was ${String(origOnTime.m).padStart(2, '0')}` : undefined}
       onStep={(d) => updateOn('m', d)}
     />
     <ValueCard
@@ -121,7 +121,7 @@
       unit="h"
       label="OFF HOUR"
       dirty={dirtyOffH}
-      sub={dirtyOffH ? `war ${String(origOffTime.h).padStart(2, '0')}` : undefined}
+      sub={dirtyOffH ? `was ${String(origOffTime.h).padStart(2, '0')}` : undefined}
       error={errPhotoperiod ? ' ' : undefined}
       onStep={(d) => updateOff('h', d)}
     />
@@ -130,7 +130,7 @@
       unit="min"
       label="OFF MIN"
       dirty={dirtyOffM}
-      sub={dirtyOffM ? `war ${String(origOffTime.m).padStart(2, '0')}` : undefined}
+      sub={dirtyOffM ? `was ${String(origOffTime.m).padStart(2, '0')}` : undefined}
       onStep={(d) => updateOff('m', d)}
     />
   </div>
@@ -142,7 +142,7 @@
       unit="min"
       label="SUNRISE"
       dirty={dirtySunrise}
-      sub={dirtySunrise ? `war ${original.dimming.sunrise_min}` : undefined}
+      sub={dirtySunrise ? `was ${original.dimming.sunrise_min}` : undefined}
       error={errSunrise || undefined}
       onStep={(d) => updateDimming('sunrise_min', d)}
     />
@@ -151,7 +151,7 @@
       unit="min"
       label="SUNSET"
       dirty={dirtySunset}
-      sub={dirtySunset ? `war ${original.dimming.sunset_min}` : undefined}
+      sub={dirtySunset ? `was ${original.dimming.sunset_min}` : undefined}
       error={errSunset || undefined}
       onStep={(d) => updateDimming('sunset_min', d)}
     />
@@ -160,7 +160,7 @@
       unit="%"
       label="MAX"
       dirty={dirtyMax}
-      sub={dirtyMax ? `war ${original.dimming.max_pct}` : undefined}
+      sub={dirtyMax ? `was ${original.dimming.max_pct}` : undefined}
       error={errMaxMin || undefined}
       onStep={(d) => updateDimming('max_pct', d)}
     />
@@ -169,7 +169,7 @@
       unit="%"
       label="MIN"
       dirty={dirtyMin}
-      sub={dirtyMin ? `war ${original.dimming.min_pct}` : undefined}
+      sub={dirtyMin ? `was ${original.dimming.min_pct}` : undefined}
       error={errMaxMin || undefined}
       onStep={(d) => updateDimming('min_pct', d)}
     />

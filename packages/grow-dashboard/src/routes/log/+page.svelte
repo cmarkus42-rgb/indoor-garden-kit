@@ -37,7 +37,7 @@
 
 <div class="log-page">
   <div class="page-header">
-    <div class="section-h">Ereignisprotokoll</div>
+    <div class="section-h">Event Log</div>
     <span class="count mono">{filtered.length}<span class="muted">/{alerts.length}</span></span>
   </div>
 
