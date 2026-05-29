@@ -1,6 +1,6 @@
 <script lang="ts">
   import { get, del, put } from '$lib/api.js';
-  import type { RecipesResponse, RecipeSummary, RecipeData } from '$lib/types.js';
+  import type { RecipesResponse, RecipeSummary, RecipeData, DayPlanResponse } from '$lib/types.js';
   import PolarRing from '$lib/components/PolarRing.svelte';
   import Chip from '$lib/components/Chip.svelte';
   import { onMount } from 'svelte';
@@ -8,6 +8,8 @@
 
   let recipes = $state<RecipeSummary[]>([]);
   let recipeDetails = $state<Record<string, RecipeData>>({});
+  let activeRecipeName = $state<string | null>(null);
+  let activating = $state<string | null>(null);
   let showImport = $state(false);
   let importJson = $state('');
   let importError = $state('');
@@ -19,8 +21,12 @@
   let nowMin = $state(getNowMin());
 
   async function load() {
-    const res = await get<RecipesResponse>('/api/recipes');
+    const [res, dayPlan] = await Promise.all([
+      get<RecipesResponse>('/api/recipes'),
+      get<DayPlanResponse>('/api/schedule/today').catch(() => null),
+    ]);
     recipes = res.recipes;
+    activeRecipeName = dayPlan?.recipe_name ?? null;
     // Batch-fetch full recipe data for PolarRing mini
     const details = await Promise.all(
       recipes.map(r =>
@@ -30,6 +36,19 @@
     const map: Record<string, RecipeData> = {};
     for (const d of details) if (d) map[d.name] = d;
     recipeDetails = map;
+  }
+
+  async function handleActivate(name: string, e: Event) {
+    e.stopPropagation();
+    activating = name;
+    try {
+      await put('/api/queue', { entries: [{ recipe: name }] });
+      activeRecipeName = name;
+    } catch (err) {
+      console.error('Failed to activate recipe:', err);
+    } finally {
+      activating = null;
+    }
   }
 
   onMount(() => {
@@ -155,11 +174,17 @@
     <div class="recipe-grid">
       {#each recipes as r}
         {@const detail = recipeDetails[r.name]}
-        <div class="recipe-card">
+        {@const isActive = activeRecipeName === r.name}
+        <div class="recipe-card" class:recipe-card--active={isActive}>
           <a class="card-body" href="/recipes/{encodeURIComponent(r.name)}">
             <div class="card-top">
               <div class="card-info">
-                <h3 class="card-name">{r.name}</h3>
+                <div class="card-name-row">
+                  <h3 class="card-name">{r.name}</h3>
+                  {#if isActive}
+                    <span class="active-badge">ACTIVE</span>
+                  {/if}
+                </div>
                 <div class="card-chips">
                   <Chip variant="light">{r.photoperiod}</Chip>
                   <Chip>{r.channels} ch</Chip>
@@ -175,6 +200,17 @@
             </div>
           </a>
           <div class="card-actions">
+            {#if isActive}
+              <button class="btn-small btn-small--active" disabled>Active</button>
+            {:else}
+              <button
+                class="btn-small btn-small--activate"
+                onclick={(e) => handleActivate(r.name, e)}
+                disabled={activating === r.name}
+              >
+                {activating === r.name ? 'Activating…' : 'Activate'}
+              </button>
+            {/if}
             <button class="btn-small" onclick={(e) => handleClone(r.name, e)}>Clone</button>
             <button class="btn-small btn-small--danger" onclick={(e) => handleDelete(r.name, e)}>Delete</button>
           </div>
@@ -282,6 +318,11 @@
     background: var(--bg-2);
   }
 
+  .recipe-card--active {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 1px var(--accent);
+  }
+
   .card-body {
     display: block;
     padding: var(--s-4);
@@ -303,6 +344,13 @@
     gap: var(--s-2);
   }
 
+  .card-name-row {
+    display: flex;
+    align-items: center;
+    gap: var(--s-2);
+    min-width: 0;
+  }
+
   .card-name {
     font: 600 var(--t-14) var(--font-sans);
     color: var(--ink-1);
@@ -310,6 +358,19 @@
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+  }
+
+  .active-badge {
+    flex-shrink: 0;
+    font: 600 var(--t-9) var(--font-mono);
+    color: var(--accent);
+    background: var(--accent-soft, oklch(82% 0.14 145 / 0.12));
+    border: 1px solid var(--accent);
+    border-radius: var(--r-1);
+    padding: 1px var(--s-2);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    line-height: 1.4;
   }
 
   .card-chips {
@@ -364,6 +425,29 @@
     color: var(--st-crit);
     border-color: var(--st-crit);
     background: var(--st-crit-soft);
+  }
+
+  .btn-small--activate {
+    color: var(--accent);
+    border-color: var(--accent);
+  }
+
+  .btn-small--activate:hover {
+    background: var(--accent-soft, oklch(82% 0.14 145 / 0.12));
+    color: var(--accent);
+    border-color: var(--accent);
+  }
+
+  .btn-small--activate:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  .btn-small--active {
+    color: var(--accent);
+    border-color: var(--accent);
+    background: var(--accent-soft, oklch(82% 0.14 145 / 0.12));
+    cursor: default;
   }
 
   /* ── Empty state ── */
