@@ -181,24 +181,30 @@
   }
   let nowMin = $state(getNowMin());
 
-  // ── Time range filter ─────────────────────────────────────────────────────
-  type TimeRange = '1h' | '6h' | '24h' | '7d' | 'max';
-  const TIME_RANGES: TimeRange[] = ['1h', '6h', '24h', '7d', 'max'];
-  const RANGE_SECONDS: Record<TimeRange, number> = {
-    '1h': 3600,
-    '6h': 21600,
-    '24h': 86400,
-    '7d': 604800,
-    'max': Infinity,
-  };
+  // ── Time range slider (logarithmic) ──────────────────────────────────────
+  const LOG_STEPS = [
+    { seconds: 3600,        label: 'Last hour' },
+    { seconds: 10800,       label: 'Last 3 hours' },
+    { seconds: 21600,       label: 'Last 6 hours' },
+    { seconds: 43200,       label: 'Last 12 hours' },
+    { seconds: 86400,       label: 'Last 24 hours' },
+    { seconds: 259200,      label: 'Last 3 days' },
+    { seconds: 604800,      label: 'Last 7 days' },
+    { seconds: 1209600,     label: 'Last 14 days' },
+    { seconds: 2592000,     label: 'Last 30 days' },
+    { seconds: 15552000,    label: 'Last 6 months' },
+    { seconds: 31536000,    label: 'Last year' },
+    { seconds: Infinity,    label: 'All data' },
+  ] as const;
 
-  let climateRange = $state<TimeRange>('1h');
-  let soilRange = $state<TimeRange>('1h');
+  let rangeStep = $state(0);
+  let rangeLabel = $derived(LOG_STEPS[rangeStep].label);
 
-  function filterByRange(aligned: uPlot.AlignedData, range: TimeRange): uPlot.AlignedData {
-    if (range === 'max' || !aligned[0]?.length) return aligned;
+  function filterByRange(aligned: uPlot.AlignedData): uPlot.AlignedData {
+    const step = LOG_STEPS[rangeStep];
+    if (step.seconds === Infinity || !aligned[0]?.length) return aligned;
     const xs = aligned[0] as number[];
-    const cutoff = Math.round(Date.now() / 1000) - RANGE_SECONDS[range];
+    const cutoff = Math.round(Date.now() / 1000) - step.seconds;
     const startIdx = xs.findIndex(t => t >= cutoff);
     if (startIdx < 0) return aligned;
     return aligned.map(arr => (arr as any[]).slice(startIdx)) as uPlot.AlignedData;
@@ -354,8 +360,8 @@
   });
 
   // ── Filtered chart data (time range) ──────────────────────────────────────
-  let climateChartFiltered = $derived(filterByRange(climateChart.data, climateRange));
-  let moistureChartFiltered = $derived(filterByRange(moistureChart.data, soilRange));
+  let climateChartFiltered = $derived(filterByRange(climateChart.data));
+  let moistureChartFiltered = $derived(filterByRange(moistureChart.data));
 
   // ── VPD band overlay ───────────────────────────────────────────────────────
   const vpdHooks: uPlot.Hooks.Arrays = {
@@ -473,6 +479,20 @@
     </div>
   </section>
 
+  <!-- ══════════════════════════════════════════════════════════════════════════
+       TIME RANGE SLIDER
+       ══════════════════════════════════════════════════════════════════════════ -->
+  <div class="time-slider-wrap">
+    <input
+      type="range"
+      class="time-slider"
+      min="0"
+      max={LOG_STEPS.length - 1}
+      bind:value={rangeStep}
+    />
+    <span class="time-slider-label">{rangeLabel}</span>
+  </div>
+
   {#if loading}
     <div class="loading">
       <div class="loading-bar"></div>
@@ -522,15 +542,6 @@
                   <span class="band-swatch ok"></span> Veg 0.8–1.2
                   <span class="band-swatch warn"></span> Flower 1.2–1.6
                 </span>
-                <div class="range-picker">
-                  {#each TIME_RANGES as r}
-                    <button
-                      class="range-btn"
-                      class:active={climateRange === r}
-                      onclick={() => climateRange = r}
-                    >{r}</button>
-                  {/each}
-                </div>
               </header>
 
               {#if climateDevices.length}
@@ -571,15 +582,6 @@
                   <span class="th-swatch warn"></span> 30% dry
                   <span class="th-swatch ok"></span> 60% field cap.
                 </span>
-                <div class="range-picker">
-                  {#each TIME_RANGES as r}
-                    <button
-                      class="range-btn"
-                      class:active={soilRange === r}
-                      onclick={() => soilRange = r}
-                    >{r}</button>
-                  {/each}
-                </div>
               </header>
 
               {#if soilDevices.length}
@@ -898,38 +900,59 @@
   .th-swatch.ok   { background: var(--st-ok); }
   .th-swatch.warn { background: var(--st-warn); }
 
-  /* ── Range picker ───────────────────────────────────────────────────────── */
-  .range-picker {
+  /* ── Time slider ──────────────────────────────────────────────────────── */
+  .time-slider-wrap {
     display: flex;
-    gap: 2px;
-    margin-left: auto;
-    background: var(--bg-2);
-    border-radius: var(--r-1);
-    padding: 2px;
+    align-items: center;
+    gap: var(--s-3);
+    padding: 0 var(--s-1);
   }
 
-  .range-btn {
-    background: none;
-    border: none;
-    padding: 2px 8px;
-    font-family: var(--font-mono);
-    font-size: var(--t-9);
-    color: var(--ink-4);
+  .time-slider {
+    flex: 1;
+    -webkit-appearance: none;
+    appearance: none;
+    height: 4px;
+    background: var(--bg-3);
+    border-radius: var(--r-pill);
+    outline: none;
     cursor: pointer;
-    border-radius: var(--r-1);
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    transition: color 0.15s, background 0.15s;
   }
 
-  .range-btn:hover {
-    color: var(--ink-2);
+  .time-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: var(--accent);
+    border: 2px solid var(--bg-0);
+    box-shadow: 0 1px 3px oklch(0% 0 0 / 0.2);
+    cursor: pointer;
+    transition: transform 0.1s;
   }
 
-  .range-btn.active {
-    background: var(--bg-0);
-    color: var(--ink-1);
-    box-shadow: 0 1px 2px oklch(0% 0 0 / 0.12);
+  .time-slider::-webkit-slider-thumb:hover {
+    transform: scale(1.2);
+  }
+
+  .time-slider::-moz-range-thumb {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: var(--accent);
+    border: 2px solid var(--bg-0);
+    box-shadow: 0 1px 3px oklch(0% 0 0 / 0.2);
+    cursor: pointer;
+  }
+
+  .time-slider-label {
+    font-family: var(--font-mono);
+    font-size: var(--t-10);
+    color: var(--ink-3);
+    white-space: nowrap;
+    min-width: 110px;
+    text-align: right;
   }
 
   /* ── Climate device row ────────────────────────────────────────────────────── */
