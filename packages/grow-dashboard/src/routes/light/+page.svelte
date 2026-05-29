@@ -69,17 +69,43 @@
     return `${String(h).padStart(2, '0')}:${String(min).padStart(2, '0')}`;
   }
 
+  let applying = $state(false);
+
   async function handleTransition() {
     if (!transitionTarget || !dayPlan?.recipe_name) return;
-    await put('/api/queue', {
-      entries: [
-        { recipe: dayPlan.recipe_name, until: transitionStart },
-        { transition_to: transitionTarget, days: transitionDays },
-        { recipe: transitionTarget },
-      ],
-    });
-    showTransition = false;
+    applying = true;
+    try {
+      await put('/api/queue', {
+        entries: [
+          { recipe: dayPlan.recipe_name, until: transitionStart },
+          { transition_to: transitionTarget, days: transitionDays },
+          { recipe: transitionTarget },
+        ],
+      });
+      showTransition = false;
+      await load();
+    } finally {
+      applying = false;
+    }
+  }
+
+  async function clearQueue() {
+    await put('/api/queue', { entries: [] });
     await load();
+  }
+
+  // Filter current recipe from target options
+  let targetOptions = $derived(
+    allRecipes.filter(r => r.name !== dayPlan?.recipe_name)
+  );
+
+  // Transition days remaining (estimate from progress)
+  function transitionDaysRemaining(): string | null {
+    if (!dayPlan?.transition_progress || !queue?.entries) return null;
+    const te = queue.entries.find(e => e.transition_to);
+    if (!te?.days) return null;
+    const remaining = Math.max(0, Math.round(te.days * (1 - dayPlan.transition_progress)));
+    return `${remaining}d remaining`;
   }
 </script>
 
@@ -151,6 +177,7 @@
         <span class="section-label">QUEUE</span>
         {#if queue?.entries.length}
           <Chip>{queue.entries.length}</Chip>
+          <button class="btn-clear-queue" onclick={clearQueue}>Clear</button>
         {/if}
       </div>
 
@@ -170,13 +197,21 @@
                   <span class="queue-name">{entry.transition_to}</span>
                   <span class="queue-meta">{entry.days} day transition</span>
                   <Chip variant="warn">transition</Chip>
+                  {#if dayPlan?.transition_progress != null}
+                    <div class="queue-progress">
+                      <div class="progress-bar">
+                        <div class="progress-fill" style="width: {Math.round(dayPlan.transition_progress * 100)}%"></div>
+                      </div>
+                      <span class="queue-meta">{Math.round(dayPlan.transition_progress * 100)}% · {transitionDaysRemaining() ?? ''}</span>
+                    </div>
+                  {/if}
                 {/if}
               </div>
             </li>
           {/each}
         </ol>
       {:else}
-        <p class="empty-msg">Queue empty</p>
+        <p class="empty-msg">Queue empty — use "Transition Recipe" to schedule a recipe change</p>
       {/if}
     </section>
   </div>
@@ -238,7 +273,7 @@
           <span class="field-label">TARGET RECIPE</span>
           <select class="input-select" bind:value={transitionTarget}>
             <option value="">— select —</option>
-            {#each allRecipes as r}
+            {#each targetOptions as r}
               <option value={r.name}>{r.name}</option>
             {/each}
           </select>
@@ -254,11 +289,36 @@
             <input class="input-date" type="date" bind:value={transitionStart} />
           </label>
         </div>
+
+        {#if transitionTarget && dayPlan?.recipe_name}
+          <div class="preview">
+            <span class="field-label">QUEUE PREVIEW</span>
+            <div class="preview-steps">
+              <div class="preview-step">
+                <span class="preview-dot" style="background: var(--st-ok)"></span>
+                <span class="preview-text">{dayPlan.recipe_name}</span>
+                <span class="preview-meta">until {transitionStart}</span>
+              </div>
+              <div class="preview-step">
+                <span class="preview-dot" style="background: var(--st-warn)"></span>
+                <span class="preview-text">Transition → {transitionTarget}</span>
+                <span class="preview-meta">{transitionDays} days</span>
+              </div>
+              <div class="preview-step">
+                <span class="preview-dot" style="background: var(--accent)"></span>
+                <span class="preview-text">{transitionTarget}</span>
+                <span class="preview-meta">ongoing</span>
+              </div>
+            </div>
+          </div>
+        {/if}
       </div>
 
       <div class="modal-footer">
         <button class="btn-ghost" onclick={() => showTransition = false}>Cancel</button>
-        <button class="btn-accent" onclick={handleTransition} disabled={!transitionTarget}>Apply</button>
+        <button class="btn-accent" onclick={handleTransition} disabled={!transitionTarget || applying}>
+          {applying ? 'Applying…' : 'Apply Transition'}
+        </button>
       </div>
     </div>
   </div>
@@ -637,5 +697,76 @@
   .input-date:focus {
     outline: none;
     border-color: var(--accent-line);
+  }
+
+  /* ── Preview ── */
+  .preview {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-2);
+    padding: var(--s-3);
+    background: var(--bg-2);
+    border: 1px solid var(--line);
+    border-radius: var(--r-2);
+  }
+
+  .preview-steps {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-2);
+  }
+
+  .preview-step {
+    display: flex;
+    align-items: center;
+    gap: var(--s-2);
+  }
+
+  .preview-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .preview-text {
+    font: 400 var(--t-11) var(--font-mono);
+    color: var(--ink-1);
+    flex: 1;
+  }
+
+  .preview-meta {
+    font: 400 var(--t-9) var(--font-mono);
+    color: var(--ink-4);
+    letter-spacing: 0.04em;
+  }
+
+  /* ── Queue progress ── */
+  .queue-progress {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-1);
+    margin-top: var(--s-1);
+  }
+
+  /* ── Clear queue button ── */
+  .btn-clear-queue {
+    margin-left: auto;
+    font: 500 var(--t-9) var(--font-mono);
+    color: var(--ink-3);
+    background: none;
+    border: 1px solid var(--line);
+    border-radius: var(--r-1);
+    padding: 2px var(--s-3);
+    cursor: pointer;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    line-height: 1.6;
+    transition: color 0.1s, border-color 0.1s;
+  }
+
+  .btn-clear-queue:hover {
+    color: var(--st-crit);
+    border-color: var(--st-crit);
   }
 </style>
