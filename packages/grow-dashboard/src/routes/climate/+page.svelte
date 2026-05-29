@@ -172,6 +172,14 @@
   function fmt(v: number | null, d = 1): string {
     return v !== null ? v.toFixed(d) : '—';
   }
+
+  function formatLastSeen(iso: string): string {
+    const m = Math.floor((Date.now() - new Date(iso).getTime()) / 60_000);
+    if (m < 1) return 'just now';
+    if (m < 60) return `${m}m ago`;
+    const h = Math.floor(m / 60);
+    return h < 24 ? `${h}h ago` : `${Math.floor(h / 24)}d ago`;
+  }
 </script>
 
 <div class="page">
@@ -186,7 +194,7 @@
       <div class="kpi-vpd">
         <KPI label="VPD" value={fmt(vpd, 2)} unit="kPa" />
         <div class="vpd-dot">
-          <StatusDot variant={vpdStatus(vpd)} live={vpd !== null} />
+          <StatusDot variant={vpdStatus(vpd)} />
         </div>
       </div>
     </div>
@@ -194,9 +202,9 @@
     <div class="device-pills">
       {#each devices as d}
         <div class="device-pill">
-          <StatusDot variant={d.status === 'online' ? 'ok' : 'crit'} live={d.status === 'online'} />
+          <StatusDot variant={d.status === 'online' ? 'ok' : 'crit'} />
           <span class="pill-name">{d.name}</span>
-          <span class="pill-zone">{d.zone}</span>
+          <span class="pill-seen">{formatLastSeen(d.last_seen)}</span>
         </div>
       {/each}
     </div>
@@ -332,12 +340,11 @@
     white-space: nowrap;
   }
 
-  .pill-zone {
+  .pill-seen {
     font-family: var(--font-mono);
     font-size: var(--t-9);
     color: var(--ink-4);
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
+    letter-spacing: 0.04em;
   }
 
   /* ── Chart sections ────────────────────────────────────────────────────────── */

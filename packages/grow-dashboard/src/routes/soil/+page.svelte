@@ -186,6 +186,8 @@
             metric={fmt(moisture)}
             unit="%"
             status={moistureStatus(moisture)}
+            periodic={true}
+            lastSeen={d.last_seen}
           />
           <!-- Moisture mini-bar -->
           <div class="moisture-bar-wrap">
