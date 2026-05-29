@@ -13,6 +13,7 @@
     axes?: uPlot.Axis[];
     onready?: (chart: uPlot) => void;
     ondestroy?: () => void;
+    onSeriesToggle?: (idx: number, visible: boolean) => void;
   }
 
   let {
@@ -24,7 +25,8 @@
     scales,
     axes,
     onready,
-    ondestroy
+    ondestroy,
+    onSeriesToggle
   }: Props = $props();
 
   let container: HTMLDivElement | undefined = $state();
@@ -90,11 +92,21 @@
     tooltipVisible = true;
   }
 
+  export function getSeriesVisible(): boolean[] {
+    return seriesVisible;
+  }
+
+  export function setSeriesVisibility(idx: number, visible: boolean) {
+    if (!chart || idx < 1 || idx >= chart.series.length) return;
+    chart.setSeries(idx, { show: visible });
+    seriesVisible = seriesVisible.map((v, i) => i === idx ? visible : v);
+    onSeriesToggle?.(idx, visible);
+  }
+
   function toggleSeries(idx: number) {
     if (!chart) return;
     const newShow = !chart.series[idx].show;
-    chart.setSeries(idx, { show: newShow });
-    seriesVisible = seriesVisible.map((v, i) => i === idx ? newShow : v);
+    setSeriesVisibility(idx, newShow);
   }
 
   function buildOpts(w: number): uPlot.Options {
@@ -192,6 +204,29 @@
   });
 </script>
 
+{#if series.length > 1}
+  <div class="chart-legend">
+    {#each series.slice(1) as s, i}
+      {@const idx = i + 1}
+      {@const color = typeof s.stroke === 'string' ? s.stroke : '#888'}
+      <button
+        class="legend-item"
+        class:legend-hidden={seriesVisible[idx] === false}
+        onclick={() => toggleSeries(idx)}
+        title="Click to {seriesVisible[idx] === false ? 'show' : 'hide'} {s.label ?? `Series ${idx}`}"
+      >
+        <span class="legend-check" class:checked={seriesVisible[idx] !== false} style="border-color:{color}; background:{seriesVisible[idx] !== false ? color : 'transparent'}">
+          {#if seriesVisible[idx] !== false}
+            <svg viewBox="0 0 12 12" width="10" height="10" aria-hidden="true"><path d="M2.5 6 5 8.5 9.5 3.5" fill="none" stroke="var(--bg-0, #111)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          {/if}
+        </span>
+        <span class="legend-label">{s.label ?? `Series ${idx}`}</span>
+      </button>
+    {/each}
+    <span class="legend-hint">click to toggle</span>
+  </div>
+{/if}
+
 <div class="chart-wrap" bind:this={container}>
   {#if tooltipVisible}
     <div
@@ -203,23 +238,6 @@
     </div>
   {/if}
 </div>
-
-{#if series.length > 1}
-  <div class="chart-legend">
-    {#each series.slice(1) as s, i}
-      {@const idx = i + 1}
-      {@const color = typeof s.stroke === 'string' ? s.stroke : '#888'}
-      <button
-        class="legend-item"
-        class:legend-hidden={seriesVisible[idx] === false}
-        onclick={() => toggleSeries(idx)}
-      >
-        <span class="legend-dot" style="background:{color}"></span>
-        <span class="legend-label">{s.label ?? `Series ${idx}`}</span>
-      </button>
-    {/each}
-  </div>
-{/if}
 
 <style>
   .chart-wrap {
@@ -283,42 +301,70 @@
   .chart-legend {
     display: flex;
     flex-wrap: wrap;
+    align-items: center;
     gap: var(--s-1, 4px) var(--s-3, 12px);
-    padding: var(--s-2, 8px) var(--s-2, 8px) var(--s-1, 4px);
+    padding: var(--s-2, 8px) var(--s-1, 4px) var(--s-1, 4px);
   }
 
   .legend-item {
     display: flex;
     align-items: center;
-    gap: 4px;
-    background: none;
-    border: none;
+    gap: 6px;
+    background: var(--bg-1, rgba(255,255,255,0.04));
+    border: 1px solid var(--line, rgba(255,255,255,0.08));
     cursor: pointer;
-    padding: 2px 4px;
-    border-radius: 3px;
+    padding: 4px 10px 4px 6px;
+    border-radius: var(--r-2, 6px);
     font-family: var(--font-mono, 'JetBrains Mono', monospace);
-    font-size: 10px;
-    color: var(--ink-3, #7a9a7e);
-    transition: opacity 0.15s;
+    font-size: 11px;
+    color: var(--ink-2, #9ab89e);
+    transition: opacity 0.15s, background 0.15s, border-color 0.15s;
   }
 
   .legend-item:hover {
-    background: var(--bg-2, rgba(0,0,0,0.05));
+    background: var(--bg-2, rgba(0,0,0,0.08));
+    border-color: var(--ink-4, rgba(255,255,255,0.15));
   }
 
   .legend-hidden {
-    opacity: 0.35;
+    opacity: 0.4;
+    border-style: dashed;
   }
 
-  .legend-dot {
-    display: inline-block;
-    width: 8px;
-    height: 3px;
-    border-radius: 1px;
+  .legend-hidden .legend-label {
+    text-decoration: line-through;
+    text-decoration-color: var(--ink-4, #5c7160);
+  }
+
+  .legend-check {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 14px;
+    height: 14px;
+    border-radius: 3px;
+    border: 2px solid;
     flex-shrink: 0;
+    transition: background 0.15s, border-color 0.15s;
+  }
+
+  .legend-check.checked {
+    border-color: transparent !important;
   }
 
   .legend-label {
     user-select: none;
+    white-space: nowrap;
+  }
+
+  .legend-hint {
+    font-family: var(--font-mono, 'JetBrains Mono', monospace);
+    font-size: 9px;
+    color: var(--ink-4, #5c7160);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-left: auto;
+    user-select: none;
+    opacity: 0.7;
   }
 </style>

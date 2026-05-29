@@ -16,16 +16,17 @@
   import TimeRangeSlider, { filterByRange, LOG_STEPS } from '$lib/components/TimeRangeSlider.svelte';
 
   // ── Section config ─────────────────────────────────────────────────────────
-  const SECTION_KEYS = ["climate", "soil", "light"] as const;
+  const SECTION_KEYS = ["climate", "soil", "light", "camera"] as const;
   type SectionKey = typeof SECTION_KEYS[number];
   interface OverviewConfig { order: SectionKey[]; visible: Record<SectionKey, boolean>; }
   const DEFAULT_CONFIG: OverviewConfig = {
-    order: ["climate", "soil", "light"],
-    visible: { climate: true, soil: true, light: true }
+    order: ["climate", "soil", "light", "camera"],
+    visible: { climate: true, soil: true, light: true, camera: true }
   };
   const STORAGE_KEY = "grow_overview_config";
 
   const SECTION_LABELS: Record<SectionKey, string> = {
+    camera: "Camera",
     climate: "Climate",
     soil: "Soil Moisture",
     light: "Light"
@@ -104,7 +105,34 @@
   let soilReadings = $state<Map<string, SensorReading[]>>(new Map());
   let dayPlan = $state<DayPlanResponse | null>(null);
   let activeRecipe = $state<RecipeData | null>(null);
+  let cameraStreams = $state<Record<string, { snapshot: string }>>({});
+  let activeCamName = $state('');
+  let camSnapshotTs = $state(0);
   let loading = $state(true);
+
+  // ── Chart refs for series toggling ──────────────────────────────────────────
+  let soilChartRef: { setSeriesVisibility: (idx: number, visible: boolean) => void; getSeriesVisible: () => boolean[] } | undefined = $state();
+  let soilSeriesVisible = $state<boolean[]>([]);
+
+  function onSoilSeriesToggle(idx: number, visible: boolean) {
+    soilSeriesVisible = soilSeriesVisible.map((v, i) => i === idx ? visible : v);
+  }
+
+  function toggleSoilDevice(deviceIdx: number) {
+    // deviceIdx is 0-based in soilDevices; chart series idx is deviceIdx + 1 (idx 0 is time)
+    const seriesIdx = deviceIdx + 1;
+    if (!soilChartRef) return;
+    const current = soilSeriesVisible[seriesIdx] !== false;
+    soilChartRef.setSeriesVisibility(seriesIdx, !current);
+  }
+
+  // Initialize soil visibility when chart data changes
+  $effect(() => {
+    const s = moistureChart.series;
+    if (s.length > 0 && soilSeriesVisible.length !== s.length) {
+      soilSeriesVisible = s.map(() => true);
+    }
+  });
 
   // ── Series colours ─────────────────────────────────────────────────────────
   const STROKES = [
@@ -172,9 +200,21 @@
     }
   }
 
+  async function loadCameras() {
+    try {
+      const res = await get<{ streams: Record<string, { snapshot: string }> }>('/api/camera/stream-urls');
+      cameraStreams = res.streams;
+      const names = Object.keys(cameraStreams);
+      if (names.length && !activeCamName) activeCamName = names[0];
+      camSnapshotTs = Date.now();
+    } catch {
+      // Camera system not configured — ignore
+    }
+  }
+
   async function loadAll() {
     loading = true;
-    await Promise.all([loadClimate(), loadSchedule()]);
+    await Promise.all([loadClimate(), loadSchedule(), loadCameras()]);
     loading = false;
   }
 
@@ -587,10 +627,12 @@
 
               {#if soilDevices.length}
                 <TimeChart
+                  bind:this={soilChartRef}
                   data={moistureChart.data}
                   series={moistureChart.series}
                   height={160}
                   hooks={thresholdHooks}
+                  onSeriesToggle={onSoilSeriesToggle}
                 />
                 {#if dryBackPct !== null}
                   <div class="dryback-widget">
@@ -607,7 +649,10 @@
                 <div class="soil-grid">
                   {#each soilDevices as d, i (d.id)}
                     {@const moisture = soilLatest(d.id)}
-                    <div class="soil-cell">
+                    {@const seriesHidden = soilSeriesVisible[i + 1] === false}
+                    <!-- svelte-ignore a11y_click_events_have_key_events -->
+                    <!-- svelte-ignore a11y_no_static_element_interactions -->
+                    <div class="soil-cell" class:series-dimmed={seriesHidden} onclick={() => toggleSoilDevice(i)} title="Click to {seriesHidden ? 'show' : 'hide'} in chart">
                       <DeviceTile
                         label={d.name}
                         sub={d.zone}
@@ -616,6 +661,7 @@
                         status={moistureStatus(moisture)}
                         periodic={true}
                         lastSeen={d.last_seen}
+                        groupColor={STROKES[i % STROKES.length]}
                       />
                       <div class="moisture-bar-wrap">
                         <div
@@ -665,6 +711,45 @@
                 </div>
               {:else}
                 <div class="empty">No active schedule</div>
+              {/if}
+            </section>
+
+          {:else if key === "camera"}
+            <!-- ════════════════════════════════════════════════════════════════
+                 CAMERA SECTION (compact snapshot widget)
+                 ════════════════════════════════════════════════════════════════ -->
+            <section class="section">
+              <header class="section-header">
+                <span class="section-label">Camera</span>
+                {#if Object.keys(cameraStreams).length > 1}
+                  <div class="cam-toggle">
+                    {#each Object.keys(cameraStreams) as cam}
+                      <button
+                        class="cam-toggle-btn"
+                        class:active={activeCamName === cam}
+                        onclick={() => { activeCamName = cam; camSnapshotTs = Date.now(); }}
+                      >{cam}</button>
+                    {/each}
+                  </div>
+                {/if}
+                <a href="/cameras" class="section-link">Open</a>
+              </header>
+
+              {#if activeCamName && cameraStreams[activeCamName]}
+                <a href="/cameras" class="cam-widget">
+                  <img
+                    class="cam-thumb"
+                    src="{cameraStreams[activeCamName].snapshot}?t={camSnapshotTs}"
+                    alt="Camera {activeCamName}"
+                    onclick={(e) => { e.preventDefault(); camSnapshotTs = Date.now(); }}
+                  />
+                  <div class="cam-overlay">
+                    <span class="cam-name">{activeCamName}</span>
+                    <span class="cam-hint">Click to refresh · Open for live view</span>
+                  </div>
+                </a>
+              {:else}
+                <div class="empty">No cameras configured</div>
               {/if}
             </section>
           {/if}
@@ -992,6 +1077,21 @@
     display: flex;
     flex-direction: column;
     gap: 4px;
+    cursor: pointer;
+    border-radius: var(--r-3);
+    transition: opacity 0.2s;
+  }
+
+  .soil-cell:hover {
+    opacity: 0.85;
+  }
+
+  .soil-cell.series-dimmed {
+    opacity: 0.35;
+  }
+
+  .soil-cell.series-dimmed:hover {
+    opacity: 0.55;
   }
 
   .moisture-bar-wrap {
@@ -1086,6 +1186,91 @@
     border-radius: var(--r-pill);
     transition: width 0.4s ease;
   }
+
+  /* ── Camera widget ────────────────────────────────────────────────────────── */
+  .cam-widget {
+    position: relative;
+    display: block;
+    border-radius: var(--r-2);
+    overflow: hidden;
+    background: #000;
+    text-decoration: none;
+  }
+
+  .cam-thumb {
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    object-fit: cover;
+    display: block;
+    transition: opacity 0.2s;
+  }
+
+  .cam-widget:hover .cam-thumb {
+    opacity: 0.85;
+  }
+
+  .cam-overlay {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    padding: var(--s-2) var(--s-3);
+    background: linear-gradient(transparent, oklch(0% 0 0 / 0.7));
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+  }
+
+  .cam-name {
+    font-family: var(--font-mono);
+    font-size: var(--t-10);
+    color: white;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+  }
+
+  .cam-hint {
+    font-family: var(--font-mono);
+    font-size: var(--t-9);
+    color: oklch(90% 0 0 / 0.6);
+  }
+
+  .cam-toggle {
+    display: flex;
+    gap: 1px;
+    border-radius: var(--r-1);
+    overflow: hidden;
+    border: 1px solid var(--line);
+  }
+
+  .cam-toggle-btn {
+    padding: 2px var(--s-2);
+    font-family: var(--font-mono);
+    font-size: var(--t-9);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--ink-3);
+    background: var(--bg-0);
+    border: none;
+    cursor: pointer;
+  }
+
+  .cam-toggle-btn.active {
+    background: var(--accent);
+    color: var(--bg-0);
+  }
+
+  .section-link {
+    margin-left: auto;
+    font-family: var(--font-mono);
+    font-size: var(--t-9);
+    color: var(--accent);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    text-decoration: none;
+  }
+
+  .section-link:hover { text-decoration: underline; }
 
   /* ── Loading / empty ───────────────────────────────────────────────────────── */
   .loading {
