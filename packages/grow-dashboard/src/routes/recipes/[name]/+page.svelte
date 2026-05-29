@@ -1,6 +1,6 @@
 <script lang="ts">
   import { get, put, getGroups } from '$lib/api.js';
-  import type { RecipeData, ChannelRule, DeviceGroup } from '$lib/types.js';
+  import type { RecipeData, ChannelRule, DeviceGroup, SensorTrigger } from '$lib/types.js';
   import PolarRing from '$lib/components/PolarRing.svelte';
   import ValueCard from '$lib/components/ValueCard.svelte';
   import { page } from '$app/stores';
@@ -13,6 +13,7 @@
   let saving = $state(false);
   let error = $state('');
   let copied = $state(false);
+  let allGroups = $state<DeviceGroup[]>([]);
   let lightGroups = $state<DeviceGroup[]>([]);
   let channelPickerOpen = $state(false);
   let channelPickerValue = $state('');
@@ -29,13 +30,15 @@
     error = '';
     try {
       recipe = await get<RecipeData>(`/api/recipes/${encodeURIComponent(name)}`);
+      recipe.sensorTriggers = recipe.sensorTriggers ?? [];
       jsonText = JSON.stringify(recipe, null, 2);
     } catch {
       error = 'Recipe not found';
     }
     try {
       const groupsRes = await getGroups();
-      lightGroups = groupsRes.groups.filter(g => g.category === 'light');
+      allGroups = groupsRes.groups;
+      lightGroups = allGroups.filter(g => g.category === 'light');
       if (lightGroups.length > 0) channelPickerValue = lightGroups[0].name;
     } catch { /* no groups yet */ }
   }
@@ -113,6 +116,27 @@
     await navigator.clipboard.writeText(jsonText);
     copied = true;
     setTimeout(() => { copied = false; }, 1500);
+  }
+
+  function addSensorRule() {
+    if (!recipe) return;
+    const triggers = recipe.sensorTriggers ?? [];
+    triggers.push({ sensorType: 'soil_moisture', operator: 'lt', threshold: 30, targetGroup: '', action: 'on' });
+    recipe = { ...recipe, sensorTriggers: triggers };
+  }
+
+  function removeSensorRule(idx: number) {
+    if (!recipe) return;
+    const triggers = [...(recipe.sensorTriggers ?? [])];
+    triggers.splice(idx, 1);
+    recipe = { ...recipe, sensorTriggers: triggers };
+  }
+
+  function updateSensorRule(idx: number, patch: Partial<SensorTrigger>) {
+    if (!recipe) return;
+    const triggers = [...(recipe.sensorTriggers ?? [])];
+    triggers[idx] = { ...triggers[idx], ...patch };
+    recipe = { ...recipe, sensorTriggers: triggers };
   }
 
   function stepDimming(key: keyof RecipeData['dimming'], delta: number) {
@@ -307,6 +331,104 @@
                         </div>
                       {/each}
                     {/if}
+                  </div>
+                {/each}
+              </div>
+            {/if}
+          </section>
+
+          <!-- Sensor Rules -->
+          <section class="form-section">
+            <div class="section-header">
+              <span class="section-label">SENSOR RULES</span>
+              <button class="btn-ghost-sm" onclick={addSensorRule}>+ Add Rule</button>
+            </div>
+
+            {#if (recipe.sensorTriggers ?? []).length === 0}
+              <p class="empty-msg">No sensor rules defined</p>
+            {:else}
+              <div class="channels-list">
+                {#each recipe.sensorTriggers ?? [] as trigger, idx}
+                  <div class="channel-card">
+                    <div class="channel-header">
+                      <select
+                        class="input-select-sm"
+                        value={trigger.sensorType}
+                        onchange={(e) => updateSensorRule(idx, { sensorType: (e.target as HTMLSelectElement).value as SensorTrigger['sensorType'] })}
+                      >
+                        <option value="soil_moisture">Soil Moisture</option>
+                        <option value="temperature">Temperature</option>
+                        <option value="humidity">Humidity</option>
+                        <option value="vpd">VPD</option>
+                      </select>
+                      <select
+                        class="input-select-sm"
+                        value={trigger.operator}
+                        onchange={(e) => updateSensorRule(idx, { operator: (e.target as HTMLSelectElement).value as SensorTrigger['operator'] })}
+                      >
+                        <option value="lt">&lt; below</option>
+                        <option value="gt">&gt; above</option>
+                        <option value="between">range</option>
+                      </select>
+                      <button class="btn-remove" onclick={() => removeSensorRule(idx)} aria-label="Remove rule">
+                        <svg width="11" height="11" viewBox="0 0 11 11" fill="none">
+                          <line x1="2" y1="2" x2="9" y2="9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                          <line x1="9" y1="2" x2="2" y2="9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                        </svg>
+                      </button>
+                    </div>
+
+                    <div class="channel-fields">
+                      <label class="field-inline">
+                        <span class="field-label-sm">THRESHOLD</span>
+                        <input class="input-num-sm" type="number" value={trigger.threshold}
+                          onchange={(e) => updateSensorRule(idx, { threshold: Number((e.target as HTMLInputElement).value) })} />
+                      </label>
+                      {#if trigger.operator === 'between'}
+                        <label class="field-inline">
+                          <span class="field-label-sm">HIGH</span>
+                          <input class="input-num-sm" type="number" value={trigger.thresholdHigh ?? 0}
+                            onchange={(e) => updateSensorRule(idx, { thresholdHigh: Number((e.target as HTMLInputElement).value) })} />
+                        </label>
+                      {/if}
+                    </div>
+
+                    <div class="channel-fields">
+                      <label class="field-inline">
+                        <span class="field-label-sm">TARGET</span>
+                        <select
+                          class="input-select-sm"
+                          value={trigger.targetGroup}
+                          onchange={(e) => updateSensorRule(idx, { targetGroup: (e.target as HTMLSelectElement).value })}
+                        >
+                          <option value="">— select group —</option>
+                          {#each allGroups as g (g.id)}
+                            <option value={g.name}>{g.name}</option>
+                          {/each}
+                        </select>
+                      </label>
+                      <label class="field-inline">
+                        <span class="field-label-sm">ACTION</span>
+                        <select
+                          class="input-select-sm"
+                          value={trigger.action}
+                          onchange={(e) => updateSensorRule(idx, { action: (e.target as HTMLSelectElement).value as SensorTrigger['action'] })}
+                        >
+                          <option value="on">ON</option>
+                          <option value="off">OFF</option>
+                          <option value="set_level">Set Level</option>
+                        </select>
+                      </label>
+                      {#if trigger.action === 'set_level'}
+                        <label class="field-inline">
+                          <span class="field-label-sm">LEVEL</span>
+                          <input class="input-num-sm" type="number" min="0" max="100"
+                            value={trigger.level ?? 50}
+                            onchange={(e) => updateSensorRule(idx, { level: Number((e.target as HTMLInputElement).value) })} />
+                          <span class="field-unit">%</span>
+                        </label>
+                      {/if}
+                    </div>
                   </div>
                 {/each}
               </div>

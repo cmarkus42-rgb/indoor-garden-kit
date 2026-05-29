@@ -101,11 +101,22 @@ export interface DimmingConfig {
   min_pct: number;
 }
 
+export interface SensorTrigger {
+  sensorType: "soil_moisture" | "temperature" | "humidity" | "vpd";
+  operator: "lt" | "gt" | "between";
+  threshold: number;
+  thresholdHigh?: number;
+  targetGroup: string;
+  action: "on" | "off" | "set_level";
+  level?: number;
+}
+
 export interface RecipeData {
   name: string;
   photoperiod: { on: string; off: string };
   dimming: DimmingConfig;
   channels: Record<string, ChannelRule>;
+  sensorTriggers?: SensorTrigger[];
 }
 
 export interface RecipeSummary {
