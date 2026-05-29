@@ -34,6 +34,7 @@
   let tooltipLeft = $state(0);
   let tooltipTop = $state(0);
   let tooltipHtml = $state('');
+  let seriesVisible = $state<boolean[]>([]);
 
   function getVar(name: string): string {
     if (!container) return '';
@@ -89,6 +90,13 @@
     tooltipVisible = true;
   }
 
+  function toggleSeries(idx: number) {
+    if (!chart) return;
+    const newShow = !chart.series[idx].show;
+    chart.setSeries(idx, { show: newShow });
+    seriesVisible = seriesVisible.map((v, i) => i === idx ? newShow : v);
+  }
+
   function buildOpts(w: number): uPlot.Options {
     const ink4 = getVar('--ink-4') || '#5c7160';
     const gridColor = getVar('--grid') || 'oklch(82% 0.14 145 / 0.07)';
@@ -137,6 +145,7 @@
     const w = container.offsetWidth || 600;
     chart = new uPlot(buildOpts(w), data, container);
     onready?.(chart);
+    seriesVisible = series.map(() => true);
 
     const ro = new ResizeObserver(([entry]) => {
       const newW = Math.floor(entry.contentRect.width);
@@ -166,6 +175,7 @@
       const w = container.offsetWidth || 600;
       chart = new uPlot(buildOpts(w), d, container);
       onready?.(chart);
+      seriesVisible = s.map(() => true);
       return;
     }
 
@@ -177,6 +187,7 @@
       const w = container.offsetWidth || 600;
       chart = new uPlot(buildOpts(w), d, container);
       onready?.(chart);
+      seriesVisible = s.map(() => true);
     }
   });
 </script>
@@ -192,6 +203,23 @@
     </div>
   {/if}
 </div>
+
+{#if series.length > 1}
+  <div class="chart-legend">
+    {#each series.slice(1) as s, i}
+      {@const idx = i + 1}
+      {@const color = typeof s.stroke === 'string' ? s.stroke : '#888'}
+      <button
+        class="legend-item"
+        class:legend-hidden={seriesVisible[idx] === false}
+        onclick={() => toggleSeries(idx)}
+      >
+        <span class="legend-dot" style="background:{color}"></span>
+        <span class="legend-label">{s.label ?? `Series ${idx}`}</span>
+      </button>
+    {/each}
+  </div>
+{/if}
 
 <style>
   .chart-wrap {
@@ -250,5 +278,47 @@
   .chart-tooltip :global(b) {
     color: oklch(95% 0.08 145);
     font-variant-numeric: tabular-nums;
+  }
+
+  .chart-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--s-1, 4px) var(--s-3, 12px);
+    padding: var(--s-2, 8px) var(--s-2, 8px) var(--s-1, 4px);
+  }
+
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 2px 4px;
+    border-radius: 3px;
+    font-family: var(--font-mono, 'JetBrains Mono', monospace);
+    font-size: 10px;
+    color: var(--ink-3, #7a9a7e);
+    transition: opacity 0.15s;
+  }
+
+  .legend-item:hover {
+    background: var(--bg-2, rgba(0,0,0,0.05));
+  }
+
+  .legend-hidden {
+    opacity: 0.35;
+  }
+
+  .legend-dot {
+    display: inline-block;
+    width: 8px;
+    height: 3px;
+    border-radius: 1px;
+    flex-shrink: 0;
+  }
+
+  .legend-label {
+    user-select: none;
   }
 </style>
