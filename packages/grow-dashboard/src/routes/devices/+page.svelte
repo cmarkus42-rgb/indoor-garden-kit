@@ -11,7 +11,7 @@
     ReadingsResponse,
     DeviceGroup
   } from '$lib/types.js';
-  import { onMount } from 'svelte';
+  import { onMount, untrack } from 'svelte';
   import KPI from '$lib/components/KPI.svelte';
   import DeviceTile from '$lib/components/DeviceTile.svelte';
   import PolarRing from '$lib/components/PolarRing.svelte';
@@ -299,7 +299,6 @@
   }
 
   async function removeGroup(id: string) {
-    if (!window.confirm('Delete this group?')) return;
     try {
       await deleteGroup(id);
       groups = groups.filter(g => g.id !== id);
@@ -333,7 +332,6 @@
       .map(id => devices.find(d => d.id === id))
       .filter((d): d is Device => d != null && isControllable(d));
     if (!controllable.length) return;
-    if (!window.confirm(`Turn ${targetOn ? 'on' : 'off'} all ${controllable.length} devices in ${g.name}?`)) return;
     await Promise.allSettled(
       controllable.map(async d => {
         try {
@@ -421,24 +419,26 @@
   $effect(() => {
     const evt = $sseLatest;
     if (!evt) return;
-    if (evt.type === 'sensor_update' && evt.data?.device) {
-      const d = evt.data as Record<string, unknown>;
-      const devName = d.device as string;
-      const dev = devices.find(dv => dv.name === devName);
-      if (dev) {
-        const patch: Record<string, number> = { ...(sensorData[dev.id] ?? {}) };
-        if (d.power_w != null) patch.power_w = d.power_w as number;
-        if (d.switch_on != null) patch.output = (d.switch_on as boolean) ? 1 : 0;
-        if (d.temperature != null) patch.temperature = d.temperature as number;
-        if (d.humidity != null) patch.humidity = d.humidity as number;
-        if (d.vpd != null) patch.vpd = d.vpd as number;
-        if (d.soil_moisture != null) patch.soil_moisture = d.soil_moisture as number;
-        sensorData = { ...sensorData, [dev.id]: patch };
+    untrack(() => {
+      if (evt.type === 'sensor_update' && evt.data?.device) {
+        const d = evt.data as Record<string, unknown>;
+        const devName = d.device as string;
+        const dev = devices.find(dv => dv.name === devName);
+        if (dev) {
+          const patch: Record<string, number> = { ...(sensorData[dev.id] ?? {}) };
+          if (d.power_w != null) patch.power_w = d.power_w as number;
+          if (d.switch_on != null) patch.output = (d.switch_on as boolean) ? 1 : 0;
+          if (d.temperature != null) patch.temperature = d.temperature as number;
+          if (d.humidity != null) patch.humidity = d.humidity as number;
+          if (d.vpd != null) patch.vpd = d.vpd as number;
+          if (d.soil_moisture != null) patch.soil_moisture = d.soil_moisture as number;
+          sensorData = { ...sensorData, [dev.id]: patch };
+        }
       }
-    }
-    if (evt.type === 'device_status') {
-      refresh();
-    }
+      if (evt.type === 'device_status') {
+        refresh();
+      }
+    });
   });
 </script>
 
