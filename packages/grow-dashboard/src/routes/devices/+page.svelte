@@ -33,7 +33,7 @@
 
   // Visibility panel
   let visibilityId = $state<string | null>(null);
-  const VIEW_KEYS = ['overview', 'investigate', 'energy', 'ventilation', 'recipes'] as const;
+  const VIEW_KEYS = ['overview', 'investigate', 'energy', 'climate', 'recipes'] as const;
 
   async function toggleEnabled(d: Device) {
     const newEnabled = d.enabled === false;
@@ -156,7 +156,7 @@
     // Primary: explicit role from backend config
     if (role === 'light') return 'Lighting';
     if (role === 'irrigation') return 'Irrigation';
-    if (role === 'ventilation') return 'Ventilation';
+    if (role === 'ventilation' || role === 'climate') return 'Ventilation';
     if (role === 'soil_moisture') return 'Soil moisture';
     if (role === 'climate') return 'Climate';
 

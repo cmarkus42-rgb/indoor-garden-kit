@@ -232,7 +232,7 @@
   {#if loading}
     <div class="loading">
       <div class="loading-bar"></div>
-      <span class="loading-text">Loading ventilation data…</span>
+      <span class="loading-text">Loading climate data…</span>
     </div>
   {:else if devices.length === 0}
     <div class="empty">No AC Infinity controllers found</div>

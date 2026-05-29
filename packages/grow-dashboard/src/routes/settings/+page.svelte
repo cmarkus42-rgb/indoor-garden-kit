@@ -67,7 +67,7 @@
     }
   }
 
-  const VIEW_KEYS = ['overview', 'investigate', 'energy', 'ventilation', 'recipes'] as const;
+  const VIEW_KEYS = ['overview', 'investigate', 'energy', 'climate', 'recipes'] as const;
   let expandedDevice = $state<string | null>(null);
 
   // -- Data --
