@@ -134,6 +134,7 @@ export interface DeviceGroup {
   name: string;
   category: 'light' | 'irrigation' | 'climate' | 'other';
   device_ids: string[];
+  color: string;
 }
 
 export interface GroupsResponse {

@@ -15,9 +15,10 @@
     toggled?: boolean | null;
     onToggle?: () => void;
     onEdit?: () => void;
+    groupColor?: string;
   }
 
-  const { label, sub, metric, unit, status, sparklinePoints, lastSeen, periodic, toggled, onToggle, onEdit }: Props = $props();
+  const { label, sub, metric, unit, status, sparklinePoints, lastSeen, periodic, toggled, onToggle, onEdit, groupColor }: Props = $props();
 
   function formatTimeAgo(isoDate: string): string {
     const diffMin = Math.floor((Date.now() - new Date(isoDate).getTime()) / 60_000);
@@ -56,7 +57,7 @@
   });
 </script>
 
-<div class="tile" class:offline={status === 'offline'} class:stale={isStale} data-status={status}>
+<div class="tile" class:offline={status === 'offline'} class:stale={isStale} class:has-group={!!groupColor} data-status={status} style:border-left-color={groupColor ?? undefined}>
   {#if status === 'offline'}
     <div class="offline-overlay" aria-hidden="true"></div>
   {/if}
@@ -122,6 +123,10 @@
     border-radius: var(--r-3);
     padding: var(--s-3) var(--s-4);
     overflow: hidden;
+  }
+
+  .tile.has-group {
+    border-left-width: 3px;
   }
 
   .edit-btn {

@@ -15,7 +15,7 @@
   import KPI from '$lib/components/KPI.svelte';
   import DeviceTile from '$lib/components/DeviceTile.svelte';
   import PolarRing from '$lib/components/PolarRing.svelte';
-  import StatusDot from '$lib/components/StatusDot.svelte';
+
 
   // ── State ──────────────────────────────────────────────────────────────────
   let devices = $state<Device[]>([]);
@@ -81,10 +81,27 @@
   let groups = $state<DeviceGroup[]>([]);
   // groupEditId: null = closed, 'new' = creating, <uuid string> = editing existing
   let groupEditId = $state<string | null>(null);
-  let groupForm = $state<{ name: string; category: DeviceGroup['category']; device_ids: string[] }>({
+  let groupForm = $state<{ name: string; category: DeviceGroup['category']; device_ids: string[]; color: string }>({
     name: '',
     category: 'light',
-    device_ids: []
+    device_ids: [],
+    color: '#4ade80'
+  });
+
+  const GROUP_COLORS = [
+    '#4ade80', '#22d3ee', '#a78bfa', '#f472b6',
+    '#fb923c', '#facc15', '#f87171', '#94a3b8',
+  ];
+
+  // Map device ID → group color for tile border
+  let deviceGroupColor = $derived.by(() => {
+    const map = new Map<string, string>();
+    for (const g of groups) {
+      for (const did of g.device_ids) {
+        map.set(did, g.color);
+      }
+    }
+    return map;
   });
 
   const STALE_MS = 10 * 60_000;
@@ -168,17 +185,6 @@
     return d.status === 'online' ? 'ok' : 'offline';
   }
 
-  // ── Alert helpers ──────────────────────────────────────────────────────────
-  function alertTone(tier: Alert['tier']): 'crit' | 'warn' | 'info' {
-    return tier === 'critical' ? 'crit' : tier === 'warning' ? 'warn' : 'info';
-  }
-
-  function relTime(ts: string): string {
-    const m = Math.floor((Date.now() - new Date(ts).getTime()) / 60_000);
-    if (m < 60) return `${m}m`;
-    const h = Math.floor(m / 60);
-    return h < 24 ? `${h}h` : `${Math.floor(h / 24)}d`;
-  }
 
   // ── Inline name editing ────────────────────────────────────────────────────
   function startEdit(d: Device) {
@@ -227,20 +233,6 @@
     } catch { /* ignore, real state will sync on next poll */ }
   }
 
-  // ── Alert actions ──────────────────────────────────────────────────────────
-  async function dismissAlert(id: string) {
-    try {
-      await post(`/api/alerts/${id}/resolve`, {});
-      alerts = alerts.filter(a => a.id !== id);
-    } catch { /* ignore */ }
-  }
-
-  async function clearAllAlerts() {
-    try {
-      await post('/api/alerts/resolve-all', {});
-      alerts = alerts.filter(a => a.resolved_at !== null);
-    } catch { /* ignore */ }
-  }
 
   // ── Group management ────────────────────────────────────────────────────────
   async function loadGroups() {
@@ -252,12 +244,12 @@
 
   function startNewGroup() {
     groupEditId = 'new';
-    groupForm = { name: '', category: 'light', device_ids: [] };
+    groupForm = { name: '', category: 'light', device_ids: [], color: '#4ade80' };
   }
 
   function startEditGroup(g: DeviceGroup) {
     groupEditId = g.id;
-    groupForm = { name: g.name, category: g.category, device_ids: [...g.device_ids] };
+    groupForm = { name: g.name, category: g.category, device_ids: [...g.device_ids], color: g.color };
   }
 
   function cancelGroup() {
@@ -273,7 +265,7 @@
   }
 
   async function saveGroup() {
-    const body = { name: groupForm.name.trim(), category: groupForm.category, device_ids: groupForm.device_ids };
+    const body = { name: groupForm.name.trim(), category: groupForm.category, device_ids: groupForm.device_ids, color: groupForm.color };
     if (!body.name) return;
     try {
       if (groupEditId === 'new') {
@@ -409,6 +401,7 @@
                     toggled={isControllable(d) ? switchState(d) : null}
                     onToggle={isControllable(d) ? () => handleToggle(d) : undefined}
                     onEdit={editingId !== d.id ? () => startEdit(d) : undefined}
+                    groupColor={deviceGroupColor.get(d.id)}
                   />
                 </div>
               {/each}
@@ -417,10 +410,22 @@
         {/if}
       {/each}
 
-      <!-- ── Groups ──────────────────────────────────────────────────────── -->
-      <section class="device-group">
-        <div class="group-header-row">
-          <h2 class="group-header">Groups</h2>
+    </div>
+
+    <!-- Sidebar: PolarRing + Groups -->
+    <aside class="sidebar">
+      {#if recipe}
+        <div class="sidebar-panel recipe-panel">
+          <div class="group-header">{recipe.name}</div>
+          <div class="polar-center">
+            <PolarRing {recipe} {nowMin} size="md" />
+          </div>
+        </div>
+      {/if}
+
+      <div class="sidebar-panel groups-panel">
+        <div class="groups-sidebar-header">
+          <span class="group-header">Groups</span>
           {#if groupEditId === null}
             <button class="btn-add-group" onclick={startNewGroup}>+ New</button>
           {/if}
@@ -440,6 +445,17 @@
                 <option value="climate">Climate</option>
                 <option value="other">Other</option>
               </select>
+              <div class="color-palette">
+                {#each GROUP_COLORS as c}
+                  <button
+                    class="color-swatch"
+                    class:active={groupForm.color === c}
+                    style="background: {c}"
+                    onclick={() => { groupForm.color = c; }}
+                    aria-label="Color {c}"
+                  ></button>
+                {/each}
+              </div>
               <div class="group-device-list">
                 {#each devices as d (d.id)}
                   <label class="group-device-check">
@@ -459,11 +475,11 @@
             </div>
           {:else}
             <div class="group-row">
+              <span class="group-row-dot" style="background: {g.color}"></span>
               <span class="group-row-name">{g.name}</span>
-              <span class="group-category-chip group-category-chip--{g.category}">{g.category}</span>
-              <span class="group-row-count">{g.device_ids.length} device{g.device_ids.length === 1 ? '' : 's'}</span>
+              <span class="group-row-count">{g.device_ids.length}</span>
               <button class="btn-group-action" onclick={() => startEditGroup(g)}>Edit</button>
-              <button class="btn-group-action btn-group-delete" onclick={() => removeGroup(g.id)}>Delete</button>
+              <button class="btn-group-action btn-group-delete" onclick={() => removeGroup(g.id)}>✕</button>
             </div>
           {/if}
         {/each}
@@ -477,6 +493,17 @@
               <option value="climate">Climate</option>
               <option value="other">Other</option>
             </select>
+            <div class="color-palette">
+              {#each GROUP_COLORS as c}
+                <button
+                  class="color-swatch"
+                  class:active={groupForm.color === c}
+                  style="background: {c}"
+                  onclick={() => { groupForm.color = c; }}
+                  aria-label="Color {c}"
+                ></button>
+              {/each}
+            </div>
             <div class="group-device-list">
               {#each devices as d (d.id)}
                 <label class="group-device-check">
@@ -494,47 +521,6 @@
               <button class="btn-group-cancel" onclick={cancelGroup}>Cancel</button>
             </div>
           </div>
-        {/if}
-      </section>
-    </div>
-
-    <!-- Sidebar: PolarRing + Alerts -->
-    <aside class="sidebar">
-      {#if recipe}
-        <div class="sidebar-panel recipe-panel">
-          <div class="group-header">{recipe.name}</div>
-          <div class="polar-center">
-            <PolarRing {recipe} {nowMin} size="md" />
-          </div>
-        </div>
-      {/if}
-
-      <div class="sidebar-panel alerts-panel">
-        <div class="alerts-header">
-          <span class="group-header">Alerts</span>
-          <div class="alerts-header-right">
-            {#if openAlerts > 0}
-              <span class="alert-badge">{openAlerts}</span>
-              <button class="clear-all-btn" onclick={clearAllAlerts}>Clear all</button>
-            {/if}
-          </div>
-        </div>
-
-        {#if alerts.filter(a => a.resolved_at === null).length === 0}
-          <p class="empty-state">No alerts</p>
-        {:else}
-          <ul class="alert-list">
-            {#each alerts.filter(a => a.resolved_at === null) as a (a.id)}
-              <li class="alert-item">
-                <StatusDot variant={alertTone(a.tier)} live={true} />
-                <div class="alert-body">
-                  <span class="alert-msg">{a.message}</span>
-                  <span class="alert-meta">{a.source} · {relTime(a.timestamp)}</span>
-                </div>
-                <button class="dismiss-btn" onclick={() => dismissAlert(a.id)} aria-label="Dismiss alert">✕</button>
-              </li>
-            {/each}
-          </ul>
         {/if}
       </div>
     </aside>
@@ -684,117 +670,6 @@
     padding: var(--s-2) 0;
   }
 
-  /* ── Alerts ──────────────────────────────────────────────────────────────── */
-  .alerts-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-  }
-
-  .alerts-header-right {
-    display: flex;
-    align-items: center;
-    gap: var(--s-2);
-  }
-
-  .alert-badge {
-    font-family: var(--font-mono);
-    font-size: var(--t-9);
-    background: var(--st-crit-soft);
-    color: var(--st-crit);
-    padding: 1px 6px;
-    border-radius: var(--r-pill);
-    font-variant-numeric: tabular-nums;
-    line-height: 1.6;
-  }
-
-  .clear-all-btn {
-    font-family: var(--font-mono);
-    font-size: var(--t-9);
-    color: var(--ink-3);
-    background: none;
-    border: 1px solid var(--line);
-    border-radius: var(--r-1);
-    padding: 1px 6px;
-    cursor: pointer;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-    line-height: 1.6;
-  }
-
-  .clear-all-btn:hover {
-    color: var(--ink-1);
-    border-color: var(--ink-3);
-  }
-
-  .dismiss-btn {
-    flex-shrink: 0;
-    margin-left: auto;
-    background: none;
-    border: none;
-    color: var(--ink-4);
-    cursor: pointer;
-    font-size: var(--t-10);
-    padding: 0 0 0 var(--s-2);
-    line-height: 1;
-    align-self: center;
-  }
-
-  .dismiss-btn:hover {
-    color: var(--ink-1);
-  }
-
-  .alert-list {
-    list-style: none;
-    margin: 0;
-    padding: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 0;
-  }
-
-  .alert-item {
-    display: flex;
-    align-items: flex-start;
-    gap: var(--s-2);
-    padding: var(--s-2) 0;
-    border-bottom: 1px solid var(--line);
-  }
-
-  .alert-item:last-child {
-    border-bottom: none;
-    padding-bottom: 0;
-  }
-
-  .alert-item.resolved {
-    opacity: 0.4;
-  }
-
-  .alert-body {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-    min-width: 0;
-  }
-
-  .alert-msg {
-    font-size: var(--t-11);
-    color: var(--ink-1);
-    line-height: 1.4;
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    line-clamp: 2;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-  }
-
-  .alert-meta {
-    font-family: var(--font-mono);
-    font-size: var(--t-9);
-    color: var(--ink-4);
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-  }
 
   .empty-state {
     font-size: var(--t-11);
@@ -804,14 +679,8 @@
     padding: var(--s-4) 0;
   }
 
-  /* ── Groups section ──────────────────────────────────────────────────────── */
-  .devices-panel > .device-group:last-child {
-    border-top: 1px solid var(--line);
-    padding-top: var(--s-4);
-    margin-top: var(--s-2);
-  }
-
-  .group-header-row {
+  /* ── Groups section (sidebar) ─────────────────────────────────────────── */
+  .groups-sidebar-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -992,5 +861,38 @@
     padding: var(--s-1) var(--s-4);
     cursor: pointer;
     letter-spacing: 0.06em;
+  }
+
+  /* ── Color palette ──────────────────────────────────────────────────────── */
+  .color-palette {
+    display: flex;
+    gap: var(--s-2);
+    flex-wrap: wrap;
+  }
+
+  .color-swatch {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    border: 2px solid transparent;
+    cursor: pointer;
+    transition: border-color 0.1s, transform 0.1s;
+    padding: 0;
+  }
+
+  .color-swatch.active {
+    border-color: var(--ink-1);
+    transform: scale(1.15);
+  }
+
+  .color-swatch:hover:not(.active) {
+    border-color: var(--ink-3);
+  }
+
+  .group-row-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
   }
 </style>

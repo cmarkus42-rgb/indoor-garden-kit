@@ -48,13 +48,14 @@ export function createGroup(body: {
   name: string;
   category: string;
   device_ids: string[];
+  color: string;
 }): Promise<DeviceGroup> {
   return post<DeviceGroup>('/api/groups', body);
 }
 
 export function updateGroup(
   id: string,
-  body: { name: string; category: string; device_ids: string[] }
+  body: { name: string; category: string; device_ids: string[]; color: string }
 ): Promise<DeviceGroup> {
   return put<DeviceGroup>(`/api/groups/${id}`, body);
 }

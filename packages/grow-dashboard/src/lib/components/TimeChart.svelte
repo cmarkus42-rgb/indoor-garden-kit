@@ -95,9 +95,29 @@
   });
 
   $effect(() => {
-    // track data changes; chart may not exist yet on first run
     const d = data;
-    if (chart) chart.setData(d);
+    const s = series;
+    if (!chart || !container) return;
+
+    // If series count changed, recreate the chart
+    if (s.length !== chart.series.length) {
+      ondestroy?.();
+      chart.destroy();
+      const w = container.offsetWidth || 600;
+      chart = new uPlot(buildOpts(w), d, container);
+      onready?.(chart);
+      return;
+    }
+
+    try {
+      chart.setData(d);
+    } catch {
+      // Corrupted state — recreate
+      chart.destroy();
+      const w = container.offsetWidth || 600;
+      chart = new uPlot(buildOpts(w), d, container);
+      onready?.(chart);
+    }
   });
 </script>
 
