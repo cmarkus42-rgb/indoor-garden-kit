@@ -5,6 +5,7 @@
   import { toTimeseries, type TimeseriesPoint } from '$lib/types.js';
   import { onMount } from 'svelte';
   import TimeChart from '$lib/components/TimeChart.svelte';
+  import TimeRangeSlider, { filterByRange } from '$lib/components/TimeRangeSlider.svelte';
   import type uPlot from 'uplot';
 
   // ── Types ──────────────────────────────────────────────────────────────────
@@ -199,6 +200,9 @@
     };
   }
 
+  // ── Time range ─────────────────────────────────────────────────────────────
+  let rangeStep = $state(4);
+
   // ── Active chart list (derived from activeMetrics) ─────────────────────────
   let activeChartKeys = $derived([...activeMetrics]);
 
@@ -307,6 +311,8 @@
     <!-- ── Chart area (right) ─────────────────────────────────────────────── -->
     <div class="chart-area">
 
+      <TimeRangeSlider bind:value={rangeStep} />
+
       {#if activeChartKeys.length === 0}
         <div class="chart-empty">
           <div class="empty-icon">◎</div>
@@ -331,7 +337,7 @@
               >✕</button>
             </header>
             <TimeChart
-              data={chart.data}
+              data={filterByRange(rangeStep, chart.data)}
               series={chart.series}
               height={180}
               hooks={sharedCursorHooks}

@@ -7,6 +7,7 @@
   import KPI from '$lib/components/KPI.svelte';
   import StatusDot from '$lib/components/StatusDot.svelte';
   import TimeChart from '$lib/components/TimeChart.svelte';
+  import TimeRangeSlider, { filterByRange } from '$lib/components/TimeRangeSlider.svelte';
   import type uPlot from 'uplot';
 
   // ── State ──────────────────────────────────────────────────────────────────
@@ -110,6 +111,9 @@
     return { data: [xs, ...ys] as uPlot.AlignedData, series };
   });
 
+  // ── Time range ─────────────────────────────────────────────────────────────
+  let rangeStep = $state(4);
+
   // ── Plug table rows ──────────────────────────────────────────────────────────
   let plugRows = $derived(
     plugs.map((p, i) => ({
@@ -152,6 +156,8 @@
     <div class="empty">No plugs found</div>
   {:else}
 
+    <TimeRangeSlider bind:value={rangeStep} />
+
     <!-- ── Power chart ───────────────────────────────────────────────────────── -->
     <section class="chart-section">
       <header class="section-header">
@@ -159,7 +165,7 @@
         <span class="section-unit">W</span>
       </header>
       <TimeChart
-        data={powerChart.data}
+        data={filterByRange(rangeStep, powerChart.data)}
         series={powerChart.series}
         height={220}
       />

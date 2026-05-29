@@ -7,6 +7,7 @@
   import KPI from '$lib/components/KPI.svelte';
   import StatusDot from '$lib/components/StatusDot.svelte';
   import TimeChart from '$lib/components/TimeChart.svelte';
+  import TimeRangeSlider, { filterByRange } from '$lib/components/TimeRangeSlider.svelte';
   import type uPlot from 'uplot';
 
   // ── State ────────────────────────────────────────────────────────────────────
@@ -173,6 +174,9 @@
     return { data: [xs, ...ys] as uPlot.AlignedData, series: uSeries };
   }
 
+  // ── Time range ─────────────────────────────────────────────────────────────
+  let rangeStep = $state(4);
+
   // ── Override actions ───────────────────────────────────────────────────────
   async function setOverride() {
     await post('/api/wind/override', { speed: overrideSpeed, duration_minutes: overrideMinutes });
@@ -231,6 +235,8 @@
   {:else if devices.length === 0}
     <div class="empty">No AC Infinity controllers found</div>
   {:else}
+    <TimeRangeSlider bind:value={rangeStep} />
+
     {#each devices as device}
       {@const ports = getPortSpeeds(device.id)}
       {@const scenario = getDevScenario(device)}
@@ -276,7 +282,7 @@
                 <span class="section-label">Fan Speed</span>
                 <span class="section-unit">0–10</span>
               </header>
-              <TimeChart data={chart.data} series={chart.series} height={140} />
+              <TimeChart data={filterByRange(rangeStep, chart.data)} series={chart.series} height={140} />
             </div>
           {/if}
         {:else}
