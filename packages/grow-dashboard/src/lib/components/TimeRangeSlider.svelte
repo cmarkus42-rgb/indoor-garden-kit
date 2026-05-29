@@ -16,8 +16,8 @@
     { seconds: Infinity,    label: 'All data' },
   ] as const;
 
-  export function filterByRange(rangeStep: number, aligned: uPlot.AlignedData): uPlot.AlignedData {
-    const step = LOG_STEPS[rangeStep];
+  export function filterByRange(rangeStep: number | string, aligned: uPlot.AlignedData): uPlot.AlignedData {
+    const step = LOG_STEPS[Number(rangeStep)];
     if (step.seconds === Infinity || !aligned[0]?.length) return aligned;
     const xs = aligned[0] as number[];
     const cutoff = Math.round(Date.now() / 1000) - step.seconds;

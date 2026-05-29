@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { get, put, post, getGroups, createGroup, updateGroup, deleteGroup } from '$lib/api.js';
+  import { get, put, post, patch, getGroups, createGroup, updateGroup, deleteGroup } from '$lib/api.js';
   import { sseLatest } from '$lib/sse.js';
   import type {
     StatusResponse,
@@ -28,6 +28,24 @@
   // Inline device-name editing
   let editingId = $state<string | null>(null);
   let editValue = $state('');
+
+  // Visibility panel
+  let visibilityId = $state<string | null>(null);
+  const VIEW_KEYS = ['overview', 'investigate', 'energy', 'ventilation', 'recipes'] as const;
+
+  async function toggleEnabled(d: Device) {
+    const newEnabled = d.enabled === false;
+    const updated = await patch<Device>(`/api/device/${d.id}/config`, { enabled: newEnabled });
+    devices = devices.map(dev => dev.id === d.id ? updated : dev);
+  }
+
+  async function toggleViewVisibility(d: Device, view: string) {
+    const current = d.view_visibility?.[view] !== false;
+    const updated = await patch<Device>(`/api/device/${d.id}/config`, {
+      view_visibility: { [view]: !current },
+    });
+    devices = devices.map(dev => dev.id === d.id ? updated : dev);
+  }
 
   function getNowMin(): number {
     const d = new Date();
@@ -402,7 +420,23 @@
 
   $effect(() => {
     const evt = $sseLatest;
-    if (evt?.type === 'device_status' || evt?.type === 'sensor_update') {
+    if (!evt) return;
+    if (evt.type === 'sensor_update' && evt.data?.device) {
+      const d = evt.data as Record<string, unknown>;
+      const devName = d.device as string;
+      const dev = devices.find(dv => dv.name === devName);
+      if (dev) {
+        const patch: Record<string, number> = { ...(sensorData[dev.id] ?? {}) };
+        if (d.power_w != null) patch.power_w = d.power_w as number;
+        if (d.switch_on != null) patch.output = (d.switch_on as boolean) ? 1 : 0;
+        if (d.temperature != null) patch.temperature = d.temperature as number;
+        if (d.humidity != null) patch.humidity = d.humidity as number;
+        if (d.vpd != null) patch.vpd = d.vpd as number;
+        if (d.soil_moisture != null) patch.soil_moisture = d.soil_moisture as number;
+        sensorData = { ...sensorData, [dev.id]: patch };
+      }
+    }
+    if (evt.type === 'device_status') {
       refresh();
     }
   });
@@ -468,6 +502,40 @@
                     dimmerValue={d.device_type === 'shelly_dimmer' ? (sensorData[d.id]?.brightness ?? 0) : undefined}
                     onDimmer={d.device_type === 'shelly_dimmer' ? (pct: number) => handleDimmer(d, pct) : undefined}
                   />
+                  <button
+                    class="tile-visibility-btn"
+                    class:vis-open={visibilityId === d.id}
+                    class:vis-disabled={d.enabled === false}
+                    onclick={() => visibilityId = visibilityId === d.id ? null : d.id}
+                    aria-label="Visibility settings"
+                  >⚙</button>
+                  {#if visibilityId === d.id}
+                    <div class="vis-panel">
+                      <label class="vis-row">
+                        <span class="vis-label">Enabled</span>
+                        <button
+                          class="vis-toggle"
+                          class:vis-toggle-on={d.enabled !== false}
+                          onclick={() => toggleEnabled(d)}
+                        >
+                          <span class="vis-toggle-track"><span class="vis-toggle-thumb"></span></span>
+                        </button>
+                      </label>
+                      <div class="vis-views" class:vis-views-disabled={d.enabled === false}>
+                        {#each VIEW_KEYS as view}
+                          <label class="vis-check">
+                            <input
+                              type="checkbox"
+                              checked={d.view_visibility?.[view] !== false}
+                              disabled={d.enabled === false}
+                              onchange={() => toggleViewVisibility(d, view)}
+                            />
+                            <span>{view}</span>
+                          </label>
+                        {/each}
+                      </div>
+                    </div>
+                  {/if}
                 </div>
               {/each}
             </div>
@@ -1048,5 +1116,120 @@
 
   .group-toggle.mixed .group-toggle-thumb {
     transform: translateX(6px);
+  }
+
+  /* ── Visibility panel ──────────────────────────────────────────────────── */
+  .tile-visibility-btn {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    z-index: 1;
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 12px;
+    color: var(--ink-4);
+    padding: 2px 4px;
+    border-radius: var(--r-1);
+    opacity: 0;
+    transition: opacity 0.15s, color 0.1s;
+  }
+
+  .tile-wrap:hover .tile-visibility-btn,
+  .tile-visibility-btn.vis-open {
+    opacity: 1;
+  }
+
+  .tile-visibility-btn:hover {
+    color: var(--ink-2);
+  }
+
+  .tile-visibility-btn.vis-disabled {
+    color: var(--st-crit);
+    opacity: 0.7;
+  }
+
+  .vis-panel {
+    background: var(--bg-1);
+    border: 1px solid var(--line);
+    border-top: none;
+    border-radius: 0 0 var(--r-2) var(--r-2);
+    padding: var(--s-2) var(--s-3);
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-2);
+  }
+
+  .vis-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .vis-label {
+    font-family: var(--font-mono);
+    font-size: var(--t-10);
+    color: var(--ink-3);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+
+  .vis-toggle {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+  }
+
+  .vis-toggle-track {
+    display: flex;
+    align-items: center;
+    width: 28px;
+    height: 16px;
+    border-radius: var(--r-pill);
+    background: var(--line);
+    padding: 2px;
+    transition: background 0.15s;
+  }
+
+  .vis-toggle-on .vis-toggle-track {
+    background: oklch(68% 0.16 145);
+  }
+
+  .vis-toggle-thumb {
+    display: block;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: var(--bg-0);
+    transition: transform 0.15s;
+  }
+
+  .vis-toggle-on .vis-toggle-thumb {
+    transform: translateX(12px);
+  }
+
+  .vis-views {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--s-1) var(--s-3);
+  }
+
+  .vis-views-disabled {
+    opacity: 0.35;
+    pointer-events: none;
+  }
+
+  .vis-check {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    font-family: var(--font-mono);
+    font-size: var(--t-9);
+    color: var(--ink-3);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    cursor: pointer;
+    user-select: none;
   }
 </style>

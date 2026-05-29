@@ -5,7 +5,7 @@
   import { toTimeseries, type TimeseriesPoint } from '$lib/types.js';
   import { onMount } from 'svelte';
   import TimeChart from '$lib/components/TimeChart.svelte';
-  import TimeRangeSlider, { filterByRange } from '$lib/components/TimeRangeSlider.svelte';
+  import TimeRangeSlider, { LOG_STEPS } from '$lib/components/TimeRangeSlider.svelte';
   import type uPlot from 'uplot';
 
   // ── Types ──────────────────────────────────────────────────────────────────
@@ -48,7 +48,7 @@
     shelly_relay: 'shelly',
     shelly_dimmer: 'shelly',
     blu_ht: 'blu_ht',
-    ecowitt_soil: 'ecowitt',
+    ecowitt_sensor: 'ecowitt',
     ecowitt_indoor: 'ecowitt',
   };
 
@@ -56,7 +56,7 @@
   const TYPE_META: Record<string, { label: string; metrics: string[] }> = {
     blu_ht:         { label: 'BLU H+T',        metrics: ['temperature', 'humidity', 'vpd', 'battery'] },
     ecowitt_indoor: { label: 'Ecowitt Indoor',  metrics: ['temperature', 'humidity', 'pressure'] },
-    ecowitt_soil:   { label: 'Soil Channels',   metrics: ['moisture', 'battery'] },
+    ecowitt_sensor:   { label: 'Soil Channels',   metrics: ['moisture', 'battery'] },
     shelly_plug:    { label: 'Shelly Plugs',    metrics: ['power', 'energy', 'temperature'] },
     shelly_relay:   { label: 'Shelly Relays',   metrics: [] },
     shelly_dimmer:  { label: 'Shelly Dimmers',  metrics: ['power'] },
@@ -132,7 +132,9 @@
 
     const results = await Promise.allSettled(
       toLoad.map(async id => {
-        const res = await get<ReadingsResponse>(`/api/readings/${id}?limit=100`);
+        const step = LOG_STEPS[Number(rangeStep)];
+        const since = step.seconds === Infinity ? '' : `&since=${Math.round(Date.now() / 1000) - step.seconds}`;
+        const res = await get<ReadingsResponse>(`/api/readings/${id}?limit=5000${since}`);
         return { id, data: res.readings };
       })
     );
@@ -337,7 +339,7 @@
               >✕</button>
             </header>
             <TimeChart
-              data={filterByRange(rangeStep, chart.data)}
+              data={chart.data}
               series={chart.series}
               height={180}
               hooks={sharedCursorHooks}

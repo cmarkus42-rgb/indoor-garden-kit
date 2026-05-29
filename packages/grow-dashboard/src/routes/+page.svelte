@@ -13,7 +13,7 @@
   import TimeChart from '$lib/components/TimeChart.svelte';
   import DeviceTile from '$lib/components/DeviceTile.svelte';
   import type uPlot from 'uplot';
-  import TimeRangeSlider, { filterByRange } from '$lib/components/TimeRangeSlider.svelte';
+  import TimeRangeSlider, { filterByRange, LOG_STEPS } from '$lib/components/TimeRangeSlider.svelte';
 
   // ── Section config ─────────────────────────────────────────────────────────
   const SECTION_KEYS = ["climate", "soil", "light"] as const;
@@ -120,6 +120,13 @@
   const FILLS = STROKES.map(s => s.replace(')', ' / 0.12)'));
 
   // ── Load climate data ──────────────────────────────────────────────────────
+  function sinceParam(): string {
+    const step = LOG_STEPS[Number(rangeStep)];
+    if (!step || step.seconds === Infinity) return '';
+    const since = Math.round(Date.now() / 1000) - step.seconds;
+    return `&since=${since}`;
+  }
+
   async function loadClimate() {
     const status = await get<StatusResponse>('/api/status');
     const visible = visibleDevices(status.devices, 'overview');
@@ -128,10 +135,16 @@
     );
     soilDevices = visible.filter(d => d.device_type === 'ecowitt_sensor');
 
+    await loadReadings();
+  }
+
+  async function loadReadings() {
+    const since = sinceParam();
+
     const cMap = new Map<string, SensorReading[]>();
     await Promise.all(
       climateDevices.map(async d => {
-        const res = await get<ReadingsResponse>(`/api/readings/${d.id}?limit=100`);
+        const res = await get<ReadingsResponse>(`/api/readings/${d.id}?limit=5000${since}`);
         cMap.set(d.id, res.readings);
       })
     );
@@ -140,7 +153,7 @@
     const sMap = new Map<string, SensorReading[]>();
     await Promise.all(
       soilDevices.map(async d => {
-        const res = await get<ReadingsResponse>(`/api/readings/${d.id}?limit=100`);
+        const res = await get<ReadingsResponse>(`/api/readings/${d.id}?limit=5000${since}`);
         sMap.set(d.id, res.readings);
       })
     );
@@ -350,8 +363,15 @@
   });
 
   // ── Filtered chart data (time range) ──────────────────────────────────────
-  let climateChartFiltered = $derived(filterByRange(rangeStep, climateChart.data));
-  let moistureChartFiltered = $derived(filterByRange(rangeStep, moistureChart.data));
+  // Reload readings when slider changes
+  let prevRange = rangeStep;
+  $effect(() => {
+    const r = rangeStep;
+    if (r !== prevRange && climateDevices.length > 0) {
+      prevRange = r;
+      loadReadings();
+    }
+  });
 
   // ── VPD band overlay ───────────────────────────────────────────────────────
   const vpdHooks: uPlot.Hooks.Arrays = {
@@ -527,7 +547,7 @@
 
               {#if climateDevices.length}
                 <TimeChart
-                  data={climateChartFiltered}
+                  data={climateChart.data}
                   series={climateChart.series}
                   height={160}
                   hooks={vpdHooks}
@@ -567,7 +587,7 @@
 
               {#if soilDevices.length}
                 <TimeChart
-                  data={moistureChartFiltered}
+                  data={moistureChart.data}
                   series={moistureChart.series}
                   height={160}
                   hooks={thresholdHooks}

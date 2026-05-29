@@ -7,7 +7,7 @@
   import KPI from '$lib/components/KPI.svelte';
   import StatusDot from '$lib/components/StatusDot.svelte';
   import TimeChart from '$lib/components/TimeChart.svelte';
-  import TimeRangeSlider, { filterByRange } from '$lib/components/TimeRangeSlider.svelte';
+  import TimeRangeSlider, { LOG_STEPS } from '$lib/components/TimeRangeSlider.svelte';
   import type uPlot from 'uplot';
 
   // ── State ──────────────────────────────────────────────────────────────────
@@ -32,7 +32,9 @@
     const map = new Map<string, SensorReading[]>();
     await Promise.all(
       plugs.map(async d => {
-        const res = await get<ReadingsResponse>(`/api/readings/${d.id}?limit=100`);
+        const step = LOG_STEPS[Number(rangeStep)];
+        const since = step.seconds === Infinity ? '' : `&since=${Math.round(Date.now() / 1000) - step.seconds}`;
+        const res = await get<ReadingsResponse>(`/api/readings/${d.id}?limit=5000${since}`);
         map.set(d.id, res.readings);
       })
     );
@@ -165,7 +167,7 @@
         <span class="section-unit">W</span>
       </header>
       <TimeChart
-        data={filterByRange(rangeStep, powerChart.data)}
+        data={powerChart.data}
         series={powerChart.series}
         height={220}
       />

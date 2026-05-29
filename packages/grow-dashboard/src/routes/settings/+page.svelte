@@ -271,11 +271,11 @@
       <div class="device-list">
         {#each devices as d}
           {@const st = deviceStatus(d.status)}
-          <div class="device-row" class:device-disabled={!d.enabled}>
+          <div class="device-row" class:device-disabled={d.enabled === false}>
             <div class="device-left">
               <button
                 class="toggle-btn"
-                class:toggle-on={d.enabled}
+                class:toggle-on={d.enabled !== false}
                 onclick={() => toggleEnabled(d)}
                 aria-label={d.enabled ? 'Disable device' : 'Enable device'}
               >
@@ -302,11 +302,11 @@
           {#if expandedDevice === d.id}
             <div class="device-views">
               {#each VIEW_KEYS as view}
-                <label class="view-check" class:view-check-disabled={!d.enabled}>
+                <label class="view-check" class:view-check-disabled={d.enabled === false}>
                   <input
                     type="checkbox"
-                    checked={d.view_visibility[view] !== false}
-                    disabled={!d.enabled}
+                    checked={d.view_visibility?.[view] !== false}
+                    disabled={d.enabled === false}
                     onchange={() => toggleViewVisibility(d, view)}
                   />
                   <span class="view-label">{view}</span>
