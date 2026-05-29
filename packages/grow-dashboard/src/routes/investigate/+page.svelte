@@ -50,6 +50,7 @@
     blu_ht: 'blu_ht',
     ecowitt_sensor: 'ecowitt',
     ecowitt_indoor: 'ecowitt',
+    ac_infinity: 'ac_infinity',
   };
 
   // ── Device-type grouping ───────────────────────────────────────────────────
@@ -60,6 +61,7 @@
     shelly_plug:    { label: 'Shelly Plugs',    metrics: ['power', 'energy', 'temperature'] },
     shelly_relay:   { label: 'Shelly Relays',   metrics: [] },
     shelly_dimmer:  { label: 'Shelly Dimmers',  metrics: ['power'] },
+    ac_infinity:    { label: 'AC Infinity',     metrics: ['temperature', 'humidity', 'vpd', 'fan_speed', 'fan_active'] },
   };
 
   // ── Series colours ─────────────────────────────────────────────────────────
