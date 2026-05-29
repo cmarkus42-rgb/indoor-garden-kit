@@ -73,7 +73,7 @@ export interface PollingResponse {
 
 // -- SSE --
 
-export type SSEEventType = 'sensor_update' | 'device_status' | 'irrigation' | 'schedule_pushed';
+export type SSEEventType = 'sensor_update' | 'device_status' | 'irrigation' | 'schedule_pushed' | 'wind_update';
 
 export interface SSEEvent {
   type: SSEEventType;
@@ -171,6 +171,29 @@ export interface DayPlanResponse {
   main_off: number;
   dimming_curve: DimmingPoint[];
   channels: ChannelSchedule[];
+}
+
+// -- Wind / Ventilation --
+
+export interface WindPort {
+  port: number;
+  speed: number;
+  reason: string;
+}
+
+export interface WindDeviceStatus {
+  scenario: string;
+  scenario_since: string | null;
+  next_reroll: string | null;
+  current_speed: number;
+}
+
+export interface WindStatusResponse {
+  enabled: boolean;
+  override_active: boolean;
+  override_until: string | null;
+  window_duration_minutes: number;
+  devices: Record<string, WindDeviceStatus>;
 }
 
 // -- Helpers --

@@ -34,10 +34,11 @@
   }
 
   const primaryLinks = [
-    { href: '/',          label: 'Overview',  icon: '◎' },
-    { href: '/devices',   label: 'Devices',   icon: '◧' },
-    { href: '/recipes',   label: 'Recipes',   icon: '◈' },
-    { href: '/energy',    label: 'Energy',    icon: '◉' },
+    { href: '/',             label: 'Overview',     icon: '◎' },
+    { href: '/devices',      label: 'Devices',      icon: '◧' },
+    { href: '/ventilation',  label: 'Ventilation',  icon: '◌' },
+    { href: '/recipes',      label: 'Recipes',      icon: '◈' },
+    { href: '/energy',       label: 'Energy',       icon: '◉' },
   ];
 
   const moreLinks = [
@@ -47,11 +48,12 @@
   ];
 
   const desktopLinks = [
-    { href: '/',            label: 'Overview'    },
-    { href: '/devices',     label: 'Devices'     },
-    { href: '/recipes',     label: 'Recipes'     },
-    { href: '/energy',      label: 'Energy'      },
-    { href: '/investigate', label: 'Investigate' },
+    { href: '/',             label: 'Overview'    },
+    { href: '/devices',      label: 'Devices'     },
+    { href: '/ventilation',  label: 'Ventilation' },
+    { href: '/recipes',      label: 'Recipes'     },
+    { href: '/energy',       label: 'Energy'      },
+    { href: '/investigate',  label: 'Investigate' },
   ];
 
   const isMoreActive = $derived(
