@@ -34,7 +34,6 @@
   }
 
   const primaryLinks = [
-    { href: '/',          label: 'Overview',  icon: '⬡' },
     { href: '/devices',   label: 'Devices',   icon: '◧' },
     { href: '/energy',    label: 'Energy',    icon: '◉' },
     { href: '/recipes',   label: 'Recipes',   icon: '◈' },
@@ -47,7 +46,6 @@
   ];
 
   const desktopLinks = [
-    { href: '/',            label: 'Overview'    },
     { href: '/devices',     label: 'Devices'     },
     { href: '/recipes',     label: 'Recipes'     },
     { href: '/energy',      label: 'Energy'      },
