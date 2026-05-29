@@ -244,6 +244,19 @@
     return Math.round(vals.reduce((a, b) => a + b, 0) / vals.length);
   });
 
+  let dryBackPct = $derived.by(() => {
+    const allVals: number[] = [];
+    for (const d of soilDevices) {
+      for (const r of soilReadings.get(d.id) ?? []) {
+        if (r.metric === "soil_moisture") allVals.push(r.value);
+      }
+    }
+    if (allVals.length < 2) return null;
+    const peak = Math.max(...allVals);
+    const trough = Math.min(...allVals);
+    return Math.round(peak - trough);
+  });
+
   function moistureStatus(v: number | null): 'ok' | 'warn' | 'crit' | 'offline' {
     if (v === null) return 'offline';
     if (v >= 30 && v <= 70) return 'ok';
@@ -591,6 +604,18 @@
                   height={160}
                   hooks={thresholdHooks}
                 />
+                {#if dryBackPct !== null}
+                  <div class="dryback-widget">
+                    <div class="dryback-header">
+                      <span class="section-label">DRY-BACK</span>
+                      <span class="dryback-value">{dryBackPct}<span class="dryback-unit">%</span></span>
+                      <span class="dryback-quality" class:good={dryBackPct >= 5 && dryBackPct <= 15} class:aggressive={dryBackPct > 15} class:low={dryBackPct < 5}>
+                        {dryBackPct < 5 ? "LOW" : dryBackPct <= 15 ? "OPTIMAL" : "AGGRESSIVE"}
+                      </span>
+                    </div>
+                    <div class="dryback-desc">Peak-to-trough VWC swing (last 24h)</div>
+                  </div>
+                {/if}
                 <div class="soil-grid">
                   {#each soilDevices as d, i (d.id)}
                     {@const moisture = soilLatest(d.id)}
@@ -965,6 +990,62 @@
   .device-row :global(.device-tile) {
     flex: 1 1 200px;
     min-width: 180px;
+  }
+
+  /* ── Dry-back widget ──────────────────────────────────────────────────────── */
+  .dryback-widget {
+    background: var(--bg-1);
+    border: 1px solid var(--line);
+    border-radius: var(--r-2);
+    padding: var(--s-3) var(--s-4);
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-1);
+  }
+
+  .dryback-header {
+    display: flex;
+    align-items: baseline;
+    gap: var(--s-3);
+  }
+
+  .dryback-value {
+    font: 600 var(--t-24) var(--font-mono);
+    color: var(--ink-1);
+    line-height: 1;
+  }
+
+  .dryback-unit {
+    font-size: var(--t-12);
+    color: var(--ink-3);
+  }
+
+  .dryback-quality {
+    font: 500 var(--t-9) var(--font-mono);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    padding: 2px var(--s-2);
+    border-radius: var(--r-pill);
+  }
+
+  .dryback-quality.good {
+    background: var(--st-ok-soft);
+    color: var(--st-ok);
+  }
+
+  .dryback-quality.aggressive {
+    background: var(--st-warn-soft);
+    color: var(--st-warn);
+  }
+
+  .dryback-quality.low {
+    background: var(--st-crit-soft);
+    color: var(--st-crit);
+  }
+
+  .dryback-desc {
+    font: 400 var(--t-9) var(--font-mono);
+    color: var(--ink-4);
   }
 
   /* ── Soil grid 4 columns ───────────────────────────────────────────────────── */

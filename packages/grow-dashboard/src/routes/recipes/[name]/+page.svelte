@@ -1,6 +1,7 @@
 <script lang="ts">
   import { get, put, getGroups } from '$lib/api.js';
   import type { RecipeData, ChannelRule, DeviceGroup, SensorTrigger } from '$lib/types.js';
+  import { PRESETS, eodFarRedChannel, dawnDuskChannels, vegSteeringTriggers, genSteeringTriggers, fourPhaseIrrigation } from '$lib/presets.js';
   import PolarRing from '$lib/components/PolarRing.svelte';
   import ValueCard from '$lib/components/ValueCard.svelte';
   import { page } from '$app/stores';
@@ -137,6 +138,37 @@
     const triggers = [...(recipe.sensorTriggers ?? [])];
     triggers[idx] = { ...triggers[idx], ...patch };
     recipe = { ...recipe, sensorTriggers: triggers };
+  }
+
+  function applyPreset(id: string) {
+    if (!recipe) return;
+    switch (id) {
+      case 'eod_far_red':
+        recipe.channels = { ...recipe.channels, ...eodFarRedChannel() };
+        break;
+      case 'dawn_dusk':
+        recipe.channels = { ...recipe.channels, ...dawnDuskChannels() };
+        break;
+      case 'veg_steering':
+      case 'gen_steering': {
+        const irrigationGroup = allGroups.find(g => g.category === 'irrigation')?.name ?? '';
+        if (!irrigationGroup) { window.alert('Create an irrigation group first'); return; }
+        const triggers = id === 'veg_steering'
+          ? vegSteeringTriggers(irrigationGroup)
+          : genSteeringTriggers(irrigationGroup);
+        recipe.sensorTriggers = [...(recipe.sensorTriggers ?? []), ...triggers];
+        break;
+      }
+      case 'four_phase': {
+        const group = allGroups.find(g => g.category === 'irrigation')?.name ?? '';
+        if (!group) { window.alert('Create an irrigation group first'); return; }
+        const result = fourPhaseIrrigation(recipe.photoperiod.on, recipe.photoperiod.off, group);
+        recipe.channels = { ...recipe.channels, ...result.channels };
+        recipe.sensorTriggers = [...(recipe.sensorTriggers ?? []), ...result.triggers];
+        break;
+      }
+    }
+    recipe = { ...recipe };
   }
 
   function stepDimming(key: keyof RecipeData['dimming'], delta: number) {
@@ -335,6 +367,25 @@
                 {/each}
               </div>
             {/if}
+          </section>
+
+          <!-- Presets -->
+          <section class="form-section">
+            <div class="section-header">
+              <span class="section-label">PRESETS</span>
+            </div>
+            <div class="preset-grid">
+              {#each PRESETS as p (p.id)}
+                <div class="preset-card">
+                  <div class="preset-top">
+                    <span class="preset-name">{p.label}</span>
+                    <span class="preset-chip" class:preset-chip--light={p.category === 'light'} class:preset-chip--irrigation={p.category === 'irrigation'}>{p.category}</span>
+                  </div>
+                  <p class="preset-desc">{p.description}</p>
+                  <button class="btn-ghost-sm" onclick={() => applyPreset(p.id)}>Apply</button>
+                </div>
+              {/each}
+            </div>
           </section>
 
           <!-- Sensor Rules -->
@@ -859,6 +910,62 @@
     color: var(--ink-4);
     padding: var(--s-2) 0;
     margin: 0;
+  }
+
+  /* ── Presets ── */
+  .preset-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--s-2);
+  }
+
+  .preset-card {
+    background: var(--bg-2);
+    border: 1px solid var(--line);
+    border-radius: var(--r-2);
+    padding: var(--s-3);
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-2);
+  }
+
+  .preset-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--s-2);
+  }
+
+  .preset-name {
+    font: 600 var(--t-11) var(--font-mono);
+    color: var(--ink-1);
+    letter-spacing: 0.04em;
+  }
+
+  .preset-chip {
+    font: 500 var(--t-9) var(--font-mono);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 1px var(--s-2);
+    border-radius: var(--r-1);
+    white-space: nowrap;
+  }
+
+  .preset-chip--light {
+    background: var(--accent-soft, rgba(99, 102, 241, 0.12));
+    color: var(--accent);
+  }
+
+  .preset-chip--irrigation {
+    background: var(--st-ok-soft, rgba(34, 197, 94, 0.12));
+    color: var(--st-ok);
+  }
+
+  .preset-desc {
+    font: 400 var(--t-10) var(--font-mono);
+    color: var(--ink-3);
+    margin: 0;
+    line-height: 1.4;
   }
 
   /* ── Channel picker ── */
