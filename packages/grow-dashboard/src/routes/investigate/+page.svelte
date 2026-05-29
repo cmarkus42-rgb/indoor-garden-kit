@@ -5,7 +5,7 @@
   import { toTimeseries, type TimeseriesPoint } from '$lib/types.js';
   import { onMount } from 'svelte';
   import TimeChart from '$lib/components/TimeChart.svelte';
-  import TimeRangeSlider, { LOG_STEPS } from '$lib/components/TimeRangeSlider.svelte';
+  import TimeRangeSlider, { LOG_STEPS, filterByRange } from '$lib/components/TimeRangeSlider.svelte';
   import type uPlot from 'uplot';
 
   // ── Types ──────────────────────────────────────────────────────────────────
@@ -339,7 +339,7 @@
               >✕</button>
             </header>
             <TimeChart
-              data={chart.data}
+              data={filterByRange(rangeStep, chart.data)}
               series={chart.series}
               height={180}
               hooks={sharedCursorHooks}
