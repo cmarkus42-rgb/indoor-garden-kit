@@ -28,11 +28,65 @@
   }: Props = $props();
 
   let container: HTMLDivElement | undefined = $state();
+  let tooltipEl: HTMLDivElement | undefined = $state();
   let chart: uPlot | null = null;
+  let tooltipVisible = $state(false);
+  let tooltipLeft = $state(0);
+  let tooltipTop = $state(0);
+  let tooltipHtml = $state('');
 
   function getVar(name: string): string {
     if (!container) return '';
     return getComputedStyle(container).getPropertyValue(name).trim();
+  }
+
+  function formatTimestamp(unix: number): string {
+    const d = new Date(unix * 1000);
+    const hh = String(d.getHours()).padStart(2, '0');
+    const mm = String(d.getMinutes()).padStart(2, '0');
+    const ss = String(d.getSeconds()).padStart(2, '0');
+    return `${hh}:${mm}:${ss}`;
+  }
+
+  function updateTooltip(u: uPlot): void {
+    const idx = u.cursor.idx;
+    const left = u.cursor.left ?? -1;
+    const top = u.cursor.top ?? -1;
+
+    if (idx == null || left < 0 || top < 0) {
+      tooltipVisible = false;
+      return;
+    }
+
+    const ts = u.data[0][idx];
+    if (ts == null) { tooltipVisible = false; return; }
+
+    let html = `<div class="tt-time">${formatTimestamp(ts)}</div>`;
+
+    for (let i = 1; i < u.series.length; i++) {
+      const s = u.series[i];
+      if (!s.show) continue;
+
+      const val = u.data[i]?.[idx];
+      const label = s.label ?? `Series ${i}`;
+      const color = typeof s.stroke === 'function' ? (s.stroke(u, i) ?? '#888') : (s.stroke ?? '#888');
+      const display = val != null ? val.toFixed(1) : '—';
+
+      html += `<div class="tt-row"><span class="tt-dot" style="background:${color}"></span>${label}: <b>${display}</b></div>`;
+    }
+
+    tooltipHtml = html;
+
+    // Position with offset; flip if near right/bottom edge
+    const wrap = u.over;
+    const ox = left + 14;
+    const oy = top - 10;
+    const flipX = (ox + 160) > wrap.offsetWidth;
+    const flipY = oy < 10;
+
+    tooltipLeft = flipX ? left - 164 : ox;
+    tooltipTop = flipY ? top + 14 : oy;
+    tooltipVisible = true;
   }
 
   function buildOpts(w: number): uPlot.Options {
@@ -54,11 +108,17 @@
       { ...axisDefaults },
     ];
 
+    // Merge caller hooks with our setCursor hook
+    const callerHooks = hooks ?? {};
+    const mergedHooks: uPlot.Hooks.Arrays = { ...callerHooks };
+    const setCursorHooks = [...(callerHooks.setCursor ?? []), updateTooltip];
+    mergedHooks.setCursor = setCursorHooks;
+
     return {
       width: w,
       height,
       series,
-      hooks: hooks ?? {},
+      hooks: mergedHooks,
       bands,
       scales,
       axes: axes ?? defaultAxes,
@@ -121,10 +181,21 @@
   });
 </script>
 
-<div class="chart-wrap" bind:this={container}></div>
+<div class="chart-wrap" bind:this={container}>
+  {#if tooltipVisible}
+    <div
+      class="chart-tooltip"
+      bind:this={tooltipEl}
+      style="left:{tooltipLeft}px;top:{tooltipTop}px"
+    >
+      {@html tooltipHtml}
+    </div>
+  {/if}
+</div>
 
 <style>
   .chart-wrap {
+    position: relative;
     background: var(--bg-inset);
     border-radius: var(--r-2);
     width: 100%;
@@ -137,38 +208,47 @@
     display: block;
   }
 
-  /* Style the built-in legend */
-  .chart-wrap :global(.u-legend) {
+  /* Floating cursor tooltip */
+  .chart-tooltip {
+    position: absolute;
+    z-index: 10;
+    pointer-events: none;
+    background: oklch(18% 0.02 145 / 0.92);
+    border: 1px solid oklch(40% 0.08 145 / 0.35);
+    border-radius: 6px;
+    padding: 6px 10px;
     font-family: 'JetBrains Mono', ui-monospace, monospace;
     font-size: 10px;
-    color: var(--ink-3);
-    padding: 4px 10px 6px;
-    background: transparent;
-    border-top: 1px solid var(--line);
-    display: flex;
-    flex-wrap: wrap;
-    gap: 2px 12px;
+    line-height: 1.5;
+    color: oklch(88% 0.06 145);
+    white-space: nowrap;
+    backdrop-filter: blur(6px);
+    box-shadow: 0 2px 8px oklch(0% 0 0 / 0.35);
   }
 
-  .chart-wrap :global(.u-legend tr) {
+  .chart-tooltip :global(.tt-time) {
+    color: oklch(70% 0.04 145);
+    margin-bottom: 2px;
+    font-size: 9px;
+    letter-spacing: 0.03em;
+  }
+
+  .chart-tooltip :global(.tt-row) {
     display: flex;
     align-items: center;
     gap: 5px;
   }
 
-  .chart-wrap :global(.u-legend .u-label) {
-    color: var(--ink-3);
-  }
-
-  .chart-wrap :global(.u-legend .u-value) {
-    color: var(--ink-1);
-    font-variant-numeric: tabular-nums;
-  }
-
-  .chart-wrap :global(.u-legend .u-marker) {
-    width: 10px;
-    height: 2px;
+  .chart-tooltip :global(.tt-dot) {
+    display: inline-block;
+    width: 8px;
+    height: 3px;
     border-radius: 1px;
     flex-shrink: 0;
+  }
+
+  .chart-tooltip :global(b) {
+    color: oklch(95% 0.08 145);
+    font-variant-numeric: tabular-nums;
   }
 </style>
