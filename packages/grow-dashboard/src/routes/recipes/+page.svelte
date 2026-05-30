@@ -975,36 +975,21 @@
     justify-content: center;
     gap: 4px;
     height: 24px;
-    position: relative;
-    z-index: 1;
-    border: 1px dashed transparent;
-    border-radius: var(--r-1);
+    border: none;
     background: transparent;
     cursor: pointer;
-    opacity: 0;
-    transition: opacity 0.15s, border-color 0.15s, background 0.15s;
-    padding: 0 var(--s-2);
-    margin: -2px 0;
+    padding: 0;
     width: 100%;
-  }
-
-  .plan-list:hover .trans-insert { opacity: 0.5; }
-  .trans-insert:hover {
-    opacity: 1 !important;
-    border-color: var(--accent);
-    background: oklch(78% 0.16 145 / 0.06);
   }
 
   .trans-insert-label {
     font: 400 9px var(--font-mono);
-    color: var(--ink-3);
+    color: var(--ink-4);
     text-transform: uppercase;
     letter-spacing: 0.08em;
   }
 
-  .trans-insert:hover .trans-insert-label { color: var(--accent); }
   .trans-insert svg { color: var(--ink-4); }
-  .trans-insert:hover svg { color: var(--accent); }
   .trans-insert:hover .trans-insert-label { color: var(--accent); }
   .trans-insert:hover svg { color: var(--accent); }
 
