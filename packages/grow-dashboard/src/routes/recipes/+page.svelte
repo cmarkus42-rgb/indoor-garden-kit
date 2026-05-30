@@ -118,6 +118,7 @@
   onMount(() => {
     loadCatalog();
     loadQueue();
+    loadToday();
     const tick = setInterval(() => { nowMin = getNowMin(); }, 60_000);
     return () => clearInterval(tick);
   });
@@ -618,6 +619,20 @@
                 {/if}
               </div>
             {/each}
+            <!-- Transition insert at end of list -->
+            {#if queue.length > 0 && !queue[queue.length - 1]?.transition_to}
+              <button
+                class="trans-insert"
+                onclick={() => insertTransition(queue.length - 1)}
+                title="Insert transition"
+              >
+                <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+                  <line x1="5" y1="1" x2="5" y2="9" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
+                  <line x1="1" y1="5" x2="9" y2="5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
+                </svg>
+                <span class="trans-insert-label">Transition</span>
+              </button>
+            {/if}
           {/if}
         </div>
 
