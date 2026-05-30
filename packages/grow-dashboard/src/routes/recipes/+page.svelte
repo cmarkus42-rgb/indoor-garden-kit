@@ -3,6 +3,7 @@
   import type { RecipesResponse, RecipeSummary, RecipeData, DayPlanResponse } from '$lib/types.js';
   import PolarRing from '$lib/components/PolarRing.svelte';
   import Chip from '$lib/components/Chip.svelte';
+  import QueueTimeline from '$lib/components/QueueTimeline.svelte';
   import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
 
@@ -137,6 +138,9 @@
       />
     </div>
   </div>
+
+  <!-- ── Queue Timeline ── -->
+  <QueueTimeline />
 
   <!-- ── Import Panel ── -->
   {#if showImport}
